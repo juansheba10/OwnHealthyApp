@@ -1,0 +1,61 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import type { WorkoutType } from "@/lib/types";
+
+export async function getWorkoutLogs(limit: number = 50) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
+}
+
+export interface WorkoutInput {
+  type: WorkoutType;
+  duration_min: number;
+  intensity: number;
+  fatigue: number;
+  notes?: string;
+}
+
+export async function addWorkoutLog(input: WorkoutInput) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase.from("workout_logs").insert({
+    user_id: user.id,
+    date: new Date().toISOString(),
+    type: input.type,
+    duration_min: input.duration_min,
+    intensity: input.intensity,
+    fatigue: input.fatigue,
+    notes: input.notes || null,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/track");
+  revalidatePath("/track/workouts");
+}
+
+export async function deleteWorkoutLog(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("workout_logs").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/track/workouts");
+}
