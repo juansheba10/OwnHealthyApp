@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     // Initial API call
     let response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-3-7-sonnet-latest",
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       tools: toolDefinitions,
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       allMessages.push({ role: "user", content: toolResults });
 
       response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+        model: "claude-3-7-sonnet-latest",
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         tools: toolDefinitions,
@@ -166,9 +166,10 @@ export async function POST(request: Request) {
 
     return Response.json({ reply });
   } catch (error) {
-    console.error("Chat API error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Chat API error:", message);
     return Response.json(
-      { error: "Error procesando el mensaje" },
+      { error: `Error: ${message}` },
       { status: 500 }
     );
   }
