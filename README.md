@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NutriTrack
 
-## Getting Started
+Webapp privada para gestionar plan nutricional, lista de compra y tracking de salud para 2 usuarios.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** (App Router, TypeScript, Server Components)
+- **Tailwind CSS v4** (dark theme, mobile-first)
+- **Supabase** (PostgreSQL, Auth, Row Level Security)
+- **Recharts** (weight evolution charts)
+- **Anthropic SDK** (AI chat assistant with tool use)
+- **Vercel** (hosting)
+
+## Features
+
+- Login con email y password (2 usuarios pre-creados)
+- Dashboard con comidas del dia, peso y entrenamientos
+- Plan de comidas semanal con editor por dia
+- Catalogo de recetas con filtros por tags y busqueda
+- Lista de compra autogenerada desde el plan
+- Tracking de peso con grafica de evolucion
+- Tracking de entrenamientos con formulario y resumen semanal
+- Chat IA conectado a la base de datos del usuario
+- Ajustes de perfil, objetivos y exportacion de datos
+
+## Setup local
 
 ```bash
+# Instalar dependencias
+npm install
+
+# Copiar variables de entorno
+cp .env.local.example .env.local
+# Editar .env.local con tus claves de Supabase y Anthropic
+
+# Ejecutar migracion en Supabase (SQL Editor o CLI)
+# supabase/migrations/00001_initial_schema.sql
+
+# Crear usuarios en Supabase Auth y ejecutar seed
+# supabase/seed.sql
+
+# Desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Descripcion | Exposicion |
+|----------|-------------|------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | Publica |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anonima de Supabase | Publica |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio (bypasses RLS) | Solo servidor |
+| `ANTHROPIC_API_KEY` | API key de Anthropic | Solo servidor |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comandos
 
-## Learn More
+```bash
+npm run dev       # Servidor de desarrollo
+npm run build     # Build de produccion
+npm run lint      # ESLint
+npm run format    # Prettier
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+  (auth)/login/       # Login page
+  (main)/             # Layout con navegacion
+    page.tsx          # Dashboard
+    plan/             # Plan semanal + editor de dia
+    recipes/          # Catalogo de recetas
+    shopping/         # Lista de compra
+    track/            # Hub de tracking
+      weight/         # Peso
+      workouts/       # Entrenamientos
+    chat/             # Chat IA
+    settings/         # Ajustes
+  api/chat/           # Endpoint del chat IA
+components/
+  ui/                 # BottomNav, Sidebar
+  plan/               # DayCard, MealBlock, MacrosBar
+  tracking/           # WeightChart
+  chat/               # ChatMessage, ChatInput
+lib/
+  supabase/           # Cliente browser, server, middleware
+  ai/                 # Tool definitions y ejecucion
+  utils/              # Fechas, shopping aggregation
+  types.ts            # Tipos compartidos
+supabase/
+  migrations/         # SQL schema
+  seed.sql            # Datos iniciales
+```
