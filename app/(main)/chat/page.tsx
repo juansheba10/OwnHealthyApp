@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Bot } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ChatMessage } from "@/components/chat/ChatMessage";
@@ -35,11 +36,22 @@ interface ApiResponse {
 }
 
 export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatPageInner />
+    </Suspense>
+  );
+}
+
+function ChatPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState<PendingConfirmation | null>(null);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prefillSent = useRef(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -47,6 +59,16 @@ export default function ChatPage() {
       if (data.user) setUserId(data.user.id);
     });
   }, []);
+
+  useEffect(() => {
+    if (prefillSent.current || !userId) return;
+    const prefill = searchParams.get("prefill");
+    if (!prefill) return;
+    prefillSent.current = true;
+    router.replace("/chat");
+    handleSend(prefill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

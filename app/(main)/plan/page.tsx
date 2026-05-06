@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { DayCard } from "@/components/plan/DayCard";
 import { getWeekRange } from "@/lib/utils/dates";
 import { getMealPlans } from "./actions";
@@ -17,6 +18,7 @@ interface MealPlan {
 }
 
 export default function PlanPage() {
+  const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [targets, setTargets] = useState<{
@@ -70,8 +72,24 @@ export default function PlanPage() {
       {loading ? (
         <div className="text-center text-muted py-8">Cargando plan...</div>
       ) : plans.length === 0 ? (
-        <div className="text-center text-muted py-8">
-          No hay plan para esta semana
+        <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
+          <div>
+            <p className="text-sm text-text">No hay plan para esta semana</p>
+            <p className="text-xs text-muted mt-1">
+              Programa antes tus entrenos para que la IA ajuste el plan a tu
+              carga.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const prompt = `Genera el plan de comidas para la semana del ${week.start} al ${week.end}.`;
+              router.push(`/chat?prefill=${encodeURIComponent(prompt)}`);
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg"
+          >
+            <Sparkles size={14} />
+            Generar con IA
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
