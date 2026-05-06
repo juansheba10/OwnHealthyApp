@@ -14,6 +14,7 @@ export const WRITE_TOOLS = new Set([
   "update_meal",
   "update_calorie_target",
   "add_recipe",
+  "generate_weekly_plan",
 ]);
 
 export function summarizeToolCall(
@@ -44,6 +45,22 @@ export function summarizeToolCall(
       return {
         title: "Añadir receta",
         summary: `"${input.title}"${kcal}`,
+      };
+    }
+    case "generate_weekly_plan": {
+      const days = (input.days ?? []) as Array<{
+        date: string;
+        total_kcal?: number;
+      }>;
+      const dates = days.map((d) => d.date).sort();
+      const total = days.reduce((s, d) => s + (d.total_kcal ?? 0), 0);
+      const avg = days.length > 0 ? Math.round(total / days.length) : 0;
+      const range =
+        dates.length > 0 ? ` · ${dates[0]} → ${dates[dates.length - 1]}` : "";
+      const avgStr = avg ? ` · promedio ${avg} kcal/día` : "";
+      return {
+        title: "Generar plan semanal",
+        summary: `${days.length} días${range}${avgStr}`,
       };
     }
     default:
@@ -170,6 +187,104 @@ export const toolDefinitions: Tool[] = [
       required: ["user_id"],
     },
   },
+  {
+    name: "get_training_schedule",
+    description:
+      "Lee el calendario de entrenos planificados del usuario en un rango de fechas. Úsalo SIEMPRE antes de generar un plan semanal.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        user_id: { type: "string" },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD" },
+      },
+      required: ["user_id", "start_date", "end_date"],
+    },
+  },
+  {
+    name: "list_recipes",
+    description:
+      "Lista las recetas disponibles en el catálogo. Úsalo antes de generar un plan para componer comidas a partir de recetas reales (no inventes recetas que no existen). Filtros opcionales por tags, kcal máximas o proteína mínima.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Tags a filtrar (la receta debe contener TODOS los tags listados)",
+        },
+        max_kcal: {
+          type: "number",
+          description: "Calorías máximas por ración",
+        },
+        min_protein: {
+          type: "number",
+          description: "Proteína mínima en gramos por ración",
+        },
+      },
+    },
+  },
+  {
+    name: "generate_weekly_plan",
+    description:
+      "Genera (o reemplaza) el plan semanal de comidas del usuario. Sustituye los planes existentes en cada fecha incluida (upsert por user_id+date). Requiere confirmación. ANTES de invocar esta tool: (1) lee el training schedule del rango, (2) lee weight_logs y workout_logs recientes para detectar tendencias, (3) lista recetas disponibles, (4) en tu mensaje al usuario antes de invocar, expón día a día qué propones y por qué.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        user_id: { type: "string" },
+        start_date: {
+          type: "string",
+          description: "Primer día del plan (YYYY-MM-DD)",
+        },
+        days: {
+          type: "array",
+          description:
+            "Una entrada por día. Típicamente 7 fechas consecutivas desde start_date.",
+          items: {
+            type: "object",
+            properties: {
+              date: { type: "string", description: "YYYY-MM-DD" },
+              day_type: {
+                type: "string",
+                enum: ["training", "rest", "double", "football_only"],
+              },
+              meals: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    time: { type: "string", description: "HH:MM" },
+                    label: { type: "string" },
+                    name: { type: "string" },
+                    items: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    kcal: { type: "number" },
+                    protein: { type: "number" },
+                    recipe_id: { type: "string" },
+                  },
+                  required: ["time", "label", "name", "items", "kcal"],
+                },
+              },
+              total_kcal: { type: "number" },
+              total_protein: { type: "number" },
+              notes: { type: "string" },
+            },
+            required: [
+              "date",
+              "day_type",
+              "meals",
+              "total_kcal",
+              "total_protein",
+            ],
+          },
+        },
+      },
+      required: ["user_id", "start_date", "days"],
+    },
+  },
 ];
 
 // Tool execution functions
@@ -201,6 +316,27 @@ export async function executeTool(
       return await addRecipe(input);
     case "analyze_progress":
       return await analyzeProgress(input.user_id as string);
+    case "get_training_schedule":
+      return await getTrainingSchedule(
+        input.user_id as string,
+        input.start_date as string,
+        input.end_date as string
+      );
+    case "list_recipes":
+      return await listRecipes(input);
+    case "generate_weekly_plan":
+      return await generateWeeklyPlan(
+        input.user_id as string,
+        input.start_date as string,
+        input.days as Array<{
+          date: string;
+          day_type: string;
+          meals: Record<string, unknown>[];
+          total_kcal: number;
+          total_protein: number;
+          notes?: string;
+        }>
+      );
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
   }
@@ -434,5 +570,120 @@ async function analyzeProgress(userId: string): Promise<string> {
         {} as Record<string, number>
       ),
     },
+  });
+}
+
+async function getTrainingSchedule(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<string> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .select("date, type, intended_intensity, notes")
+    .eq("user_id", userId)
+    .gte("date", startDate)
+    .lte("date", endDate)
+    .order("date");
+
+  if (error) return JSON.stringify({ error: error.message });
+
+  return JSON.stringify({
+    period: `${startDate} a ${endDate}`,
+    sessions: data ?? [],
+  });
+}
+
+async function listRecipes(
+  filters: Record<string, unknown>
+): Promise<string> {
+  const supabase = getAdminClient();
+  let query = supabase
+    .from("recipes")
+    .select(
+      "id, title, subtitle, tags, macros, servings, prep_time_min, pairing_notes"
+    );
+
+  if (Array.isArray(filters.tags) && filters.tags.length > 0) {
+    query = query.contains("tags", filters.tags as string[]);
+  }
+
+  const { data, error } = await query.order("title");
+  if (error) return JSON.stringify({ error: error.message });
+
+  let recipes = (data ?? []) as Array<{
+    id: string;
+    title: string;
+    macros: Record<string, number>;
+  }>;
+
+  if (typeof filters.max_kcal === "number") {
+    const max = filters.max_kcal as number;
+    recipes = recipes.filter((r) => (r.macros?.kcal ?? Infinity) <= max);
+  }
+  if (typeof filters.min_protein === "number") {
+    const min = filters.min_protein as number;
+    recipes = recipes.filter((r) => (r.macros?.protein ?? 0) >= min);
+  }
+
+  return JSON.stringify({ count: recipes.length, recipes });
+}
+
+async function generateWeeklyPlan(
+  userId: string,
+  startDate: string,
+  days: Array<{
+    date: string;
+    day_type: string;
+    meals: Record<string, unknown>[];
+    total_kcal: number;
+    total_protein: number;
+    notes?: string;
+  }>
+): Promise<string> {
+  if (!Array.isArray(days) || days.length === 0) {
+    return JSON.stringify({ error: "days no puede estar vacío" });
+  }
+
+  const supabase = getAdminClient();
+
+  const rows = days.map((d) => ({
+    user_id: userId,
+    date: d.date,
+    day_type: d.day_type,
+    meals: d.meals,
+    total_kcal: d.total_kcal,
+    total_protein: d.total_protein,
+    notes: d.notes ?? null,
+  }));
+
+  const { error } = await supabase
+    .from("meal_plans")
+    .upsert(rows, { onConflict: "user_id,date" });
+
+  if (error) return JSON.stringify({ error: error.message });
+
+  const dates = days.map((d) => d.date).sort();
+  const avgKcal = Math.round(
+    days.reduce((s, d) => s + (d.total_kcal ?? 0), 0) / days.length
+  );
+
+  await supabase.from("change_log").insert({
+    user_id: userId,
+    action: "generate_weekly_plan",
+    details: {
+      start_date: startDate,
+      dates,
+      day_count: days.length,
+      avg_kcal: avgKcal,
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    message: `Plan generado: ${days.length} días (${dates[0]} → ${
+      dates[dates.length - 1]
+    }). Promedio ${avgKcal} kcal/día.`,
   });
 }

@@ -60,3 +60,13 @@ export interface CalorieTargets {
   double: number;
   football_only: number;
 }
+
+export interface WorkoutPlan {
+  id: string;
+  user_id: string;
+  date: string;
+  type: WorkoutType;
+  intended_intensity: number | null;
+  notes: string | null;
+  created_at: string;
+}

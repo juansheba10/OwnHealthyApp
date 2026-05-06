@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Trash2, Clock, Zap, Battery } from "lucide-react";
+import { ArrowLeft, Trash2, Clock, Zap, Battery, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -88,14 +88,23 @@ export default function WorkoutsPage() {
         </div>
       </div>
 
-      {/* Add button */}
+      {/* Add button + schedule link */}
       {!showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-bg"
-        >
-          Registrar entreno
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-bg"
+          >
+            Registrar entreno
+          </button>
+          <button
+            onClick={() => router.push("/track/workouts/schedule")}
+            className="w-full rounded-lg border border-border bg-card py-2.5 text-sm text-muted hover:text-text flex items-center justify-center gap-2"
+          >
+            <CalendarPlus size={14} />
+            Programar próximas sesiones
+          </button>
+        </div>
       )}
 
       {/* Form */}
