@@ -1,10 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
-import { toolDefinitions, executeTool } from "@/lib/ai/tools";
+import {
+  toolDefinitions,
+  executeTool,
+  WRITE_TOOLS,
+  summarizeToolCall,
+} from "@/lib/ai/tools";
 
 const anthropic = new Anthropic();
+const MODEL = "claude-sonnet-4-6";
+const MAX_TOKENS = 1024;
 
-// Service role client for reading user context
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +29,9 @@ async function getUserContext(userId: string): Promise<string> {
   const [profile, weights, workouts, todayPlan] = await Promise.all([
     supabase
       .from("users")
-      .select("name, calorie_targets, protein_target, restrictions, fasting_protocol, profile")
+      .select(
+        "name, calorie_targets, protein_target, restrictions, fasting_protocol, profile"
+      )
       .eq("id", userId)
       .single(),
     supabase
@@ -64,113 +72,221 @@ const SYSTEM_PROMPT = `Eres el asistente nutricional de NutriTrack. Ayudas a los
 REGLAS:
 1. SIEMPRE lee los datos reales del usuario con get_user_stats antes de dar consejos. NUNCA inventes datos.
 2. Responde en español, de forma cercana y directa (tutea al usuario).
-3. Cuando propongas cambios (sustituir comida, ajustar calorías), EXPLICA qué vas a hacer y POR QUÉ antes de ejecutar la tool.
-4. Si el usuario pide algo que implica escribir en la base de datos, pide confirmación antes de ejecutar.
-5. Sé conciso. No hagas listas largas a menos que te lo pidan.
-6. Conoces las restricciones del usuario (sin pescado, etc.) — respétalas siempre.
-7. Si no tienes datos suficientes, dilo honestamente. No improvises.
-8. Cuando analices progreso, sé realista pero motivador.`;
+3. Cuando propongas cambios (sustituir comida, ajustar calorías), EXPLICA qué vas a hacer y POR QUÉ antes de invocar la tool. La aplicación le pedirá confirmación al usuario antes de aplicarlos.
+4. Sé conciso. No hagas listas largas a menos que te lo pidan.
+5. Conoces las restricciones del usuario (sin pescado, etc.) — respétalas siempre.
+6. Si no tienes datos suficientes, dilo honestamente. No improvises.
+7. Cuando analices progreso, sé realista pero motivador.
+8. Si una tool devuelve "Usuario canceló la operación", reconoce el rechazo con naturalidad y ofrece alternativas si tiene sentido.`;
+
+type ChatState = {
+  messages: Anthropic.MessageParam[];
+  pendingToolUses: Array<{
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+  }>;
+  toolResults: Anthropic.ToolResultBlockParam[];
+  userId: string;
+  lastUserText: string;
+};
+
+type ProcessResult =
+  | { kind: "reply"; text: string }
+  | {
+      kind: "needs_confirmation";
+      pendingConfirmation: {
+        toolName: string;
+        title: string;
+        summary: string;
+        assistantText?: string;
+      };
+      state: ChatState;
+    };
+
+function extractAssistantText(
+  content: Anthropic.MessageParam["content"]
+): string | undefined {
+  if (typeof content === "string") return content || undefined;
+  const block = content.find(
+    (b): b is Anthropic.TextBlockParam => b.type === "text"
+  );
+  return block?.text || undefined;
+}
+
+async function runLoop(state: ChatState): Promise<ProcessResult> {
+  while (true) {
+    while (state.pendingToolUses.length > 0) {
+      const tu = state.pendingToolUses[0];
+      if (WRITE_TOOLS.has(tu.name)) {
+        const lastMsg = state.messages[state.messages.length - 1];
+        const assistantText =
+          lastMsg?.role === "assistant"
+            ? extractAssistantText(lastMsg.content)
+            : undefined;
+        return {
+          kind: "needs_confirmation",
+          pendingConfirmation: {
+            toolName: tu.name,
+            ...summarizeToolCall(tu.name, tu.input),
+            assistantText,
+          },
+          state,
+        };
+      }
+      const result = await executeTool(tu.name, tu.input);
+      state.toolResults.push({
+        type: "tool_result",
+        tool_use_id: tu.id,
+        content: result,
+      });
+      state.pendingToolUses.shift();
+    }
+
+    if (state.toolResults.length === 0) {
+      const lastMsg = state.messages[state.messages.length - 1];
+      const text =
+        lastMsg?.role === "assistant"
+          ? extractAssistantText(lastMsg.content) ?? ""
+          : "";
+      return { kind: "reply", text };
+    }
+
+    state.messages.push({ role: "user", content: state.toolResults });
+    state.toolResults = [];
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: SYSTEM_PROMPT,
+      tools: toolDefinitions,
+      messages: state.messages,
+    });
+    state.messages.push({ role: "assistant", content: response.content });
+    state.pendingToolUses = response.content
+      .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        input: b.input as Record<string, unknown>,
+      }));
+  }
+}
+
+async function saveChat(
+  userId: string,
+  userText: string,
+  replyText: string
+): Promise<void> {
+  const supabase = getAdminClient();
+  await supabase.from("chat_messages").insert([
+    { user_id: userId, role: "user", content: { text: userText } },
+    {
+      user_id: userId,
+      role: "assistant",
+      content: { text: replyText },
+    },
+  ]);
+}
 
 export async function POST(request: Request) {
   try {
-    const { messages, userId } = await request.json();
-
+    const body = await request.json();
+    const userId = body.userId as string | undefined;
     if (!userId) {
       return Response.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // Load user context
-    const userContext = await getUserContext(userId);
+    let state: ChatState;
 
-    // Build messages for Anthropic
-    const anthropicMessages: Anthropic.MessageParam[] = messages.map(
-      (m: { role: string; content: string }) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })
-    );
+    if (body.state) {
+      const incoming = body.state as ChatState;
+      const approved = body.approval?.approved === true;
+      const tu = incoming.pendingToolUses[0];
+      if (!tu) {
+        return Response.json(
+          { error: "No pending tool to confirm" },
+          { status: 400 }
+        );
+      }
+      if (approved) {
+        const result = await executeTool(tu.name, tu.input);
+        incoming.toolResults.push({
+          type: "tool_result",
+          tool_use_id: tu.id,
+          content: result,
+        });
+      } else {
+        incoming.toolResults.push({
+          type: "tool_result",
+          tool_use_id: tu.id,
+          content: JSON.stringify({
+            error:
+              "Usuario canceló la operación. No se aplicó ningún cambio.",
+          }),
+          is_error: true,
+        });
+      }
+      incoming.pendingToolUses.shift();
+      state = incoming;
+    } else {
+      const messages = body.messages as Array<{
+        role: "user" | "assistant";
+        content: string;
+      }>;
+      const userContext = await getUserContext(userId);
 
-    // Insert user context into the first user message
-    if (anthropicMessages.length > 0 && anthropicMessages[0].role === "user") {
-      anthropicMessages[0] = {
-        role: "user",
-        content: `${userContext}\n\n---\n\nMensaje del usuario: ${anthropicMessages[0].content}`,
+      const anthropicMessages: Anthropic.MessageParam[] = messages.map(
+        (m) => ({ role: m.role, content: m.content })
+      );
+      if (
+        anthropicMessages.length > 0 &&
+        anthropicMessages[0].role === "user"
+      ) {
+        anthropicMessages[0] = {
+          role: "user",
+          content: `${userContext}\n\n---\n\nMensaje del usuario: ${anthropicMessages[0].content}`,
+        };
+      }
+
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        tools: toolDefinitions,
+        messages: anthropicMessages,
+      });
+      anthropicMessages.push({ role: "assistant", content: response.content });
+
+      state = {
+        messages: anthropicMessages,
+        pendingToolUses: response.content
+          .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
+          .map((b) => ({
+            id: b.id,
+            name: b.name,
+            input: b.input as Record<string, unknown>,
+          })),
+        toolResults: [],
+        userId,
+        lastUserText: messages[messages.length - 1]?.content ?? "",
       };
     }
 
-    // Initial API call
-    let response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      tools: toolDefinitions,
-      messages: anthropicMessages,
-    });
+    const result = await runLoop(state);
 
-    // Handle tool use loop
-    const allMessages = [...anthropicMessages];
-
-    while (response.stop_reason === "tool_use") {
-      const assistantContent = response.content;
-      allMessages.push({ role: "assistant", content: assistantContent });
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const block of assistantContent) {
-        if (block.type === "tool_use") {
-          const result = await executeTool(
-            block.name,
-            block.input as Record<string, unknown>
-          );
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: result,
-          });
-        }
-      }
-
-      allMessages.push({ role: "user", content: toolResults });
-
-      response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        tools: toolDefinitions,
-        messages: allMessages,
+    if (result.kind === "needs_confirmation") {
+      return Response.json({
+        pendingConfirmation: result.pendingConfirmation,
+        state: result.state,
       });
     }
 
-    // Extract text response
-    const textContent = response.content.find((b) => b.type === "text");
-    const reply = textContent ? textContent.text : "No pude generar una respuesta.";
-
-    // Save messages to DB
-    const supabase = getAdminClient();
-    const lastUserMessage = messages[messages.length - 1];
-    await supabase.from("chat_messages").insert([
-      {
-        user_id: userId,
-        role: "user",
-        content: { text: lastUserMessage.content },
-      },
-      {
-        user_id: userId,
-        role: "assistant",
-        content: { text: reply },
-        tool_calls: response.content.some((b) => b.type === "tool_use")
-          ? response.content.filter((b) => b.type === "tool_use")
-          : null,
-      },
-    ]);
-
-    return Response.json({ reply });
+    await saveChat(state.userId, state.lastUserText, result.text);
+    return Response.json({ reply: result.text });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Chat API error:", message);
-    return Response.json(
-      { error: `Error: ${message}` },
-      { status: 500 }
-    );
+    return Response.json({ error: `Error: ${message}` }, { status: 500 });
   }
 }

@@ -9,6 +9,51 @@ function getAdminClient() {
   );
 }
 
+// Tools that mutate state — must be confirmed by the user before executing.
+export const WRITE_TOOLS = new Set([
+  "update_meal",
+  "update_calorie_target",
+  "add_recipe",
+]);
+
+export function summarizeToolCall(
+  name: string,
+  input: Record<string, unknown>
+): { title: string; summary: string } {
+  switch (name) {
+    case "update_meal": {
+      const meal = (input.new_meal ?? {}) as Record<string, unknown>;
+      const kcal = meal.kcal ? `${meal.kcal} kcal` : "";
+      const protein = meal.protein ? `${meal.protein}g proteína` : "";
+      const macros = [kcal, protein].filter(Boolean).join(" · ");
+      return {
+        title: "Sustituir comida",
+        summary: `${input.date} · comida #${
+          (input.meal_index as number) + 1
+        } → "${meal.name ?? "(sin nombre)"}"${macros ? ` (${macros})` : ""}`,
+      };
+    }
+    case "update_calorie_target":
+      return {
+        title: "Ajustar objetivo calórico",
+        summary: `${input.day_type}: ${input.new_target} kcal — ${input.reason}`,
+      };
+    case "add_recipe": {
+      const macros = (input.macros ?? {}) as Record<string, unknown>;
+      const kcal = macros.kcal ? ` (${macros.kcal} kcal/ración)` : "";
+      return {
+        title: "Añadir receta",
+        summary: `"${input.title}"${kcal}`,
+      };
+    }
+    default:
+      return {
+        title: name,
+        summary: JSON.stringify(input),
+      };
+  }
+}
+
 export const toolDefinitions: Tool[] = [
   {
     name: "get_user_stats",
