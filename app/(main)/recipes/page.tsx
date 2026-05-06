@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus, Clock, Flame, X, Users } from "lucide-react";
+import { Search, Plus, Clock, Flame, X, Users, Sparkles } from "lucide-react";
 import { getRecipes, createRecipe, type RecipeInput } from "./actions";
 import type { Macros, Ingredient } from "@/lib/types";
 
@@ -328,6 +328,43 @@ function RecipeModal({
     prep_time_min: 0,
     pairing_notes: "",
   });
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    if (!aiPrompt.trim()) return;
+    setGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/recipes/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.recipe) {
+        setAiError(data.error ?? "No se pudo generar la receta");
+        return;
+      }
+      const r = data.recipe as Partial<RecipeInput>;
+      setForm({
+        title: r.title ?? "",
+        subtitle: r.subtitle ?? "",
+        tags: Array.isArray(r.tags) ? r.tags : [],
+        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+        steps: r.steps ?? "",
+        macros: r.macros ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+        servings: r.servings ?? 1,
+        prep_time_min: r.prep_time_min ?? 0,
+        pairing_notes: r.pairing_notes ?? "",
+      });
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Error al generar");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -338,6 +375,42 @@ function RecipeModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4">
       <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-surface p-6 space-y-4">
         <h2 className="font-display text-2xl uppercase">Nueva receta</h2>
+
+        {/* AI generation panel */}
+        <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-accent">
+            <Sparkles size={14} />
+            Generar con IA
+          </div>
+          <textarea
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="Ej: Bowl de salmón ahumado con quinoa y espinacas, alta en proteína para post-entreno"
+            rows={2}
+            disabled={generating}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-60"
+          />
+          <div className="flex items-center justify-between gap-2">
+            {aiError ? (
+              <p className="text-xs text-pink flex-1 truncate" title={aiError}>
+                {aiError}
+              </p>
+            ) : (
+              <p className="text-xs text-muted flex-1">
+                La IA rellenará el formulario. Revísalo antes de guardar.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generating || !aiPrompt.trim()}
+              className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? "Generando…" : "Generar"}
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
@@ -377,6 +450,21 @@ function RecipeModal({
               </button>
             ))}
           </div>
+          {form.ingredients.length > 0 && (
+            <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+              <p className="text-xs uppercase tracking-wide text-muted font-mono">
+                Ingredientes ({form.ingredients.length})
+              </p>
+              <ul className="space-y-0.5">
+                {form.ingredients.map((ing, i) => (
+                  <li key={i} className="text-xs text-text">
+                    <span className="text-muted">·</span> {ing.qty} {ing.unit}{" "}
+                    {ing.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <textarea
             placeholder="Pasos (markdown)"
             value={form.steps}

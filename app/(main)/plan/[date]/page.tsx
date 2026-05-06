@@ -2,11 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MacrosBar } from "@/components/plan/MacrosBar";
-import { getDayPlan, updateDayType, updateMeal, deleteMeal, addMeal } from "./actions";
+import { RecipePickerModal } from "@/components/plan/RecipePickerModal";
+import {
+  getDayPlan,
+  updateDayType,
+  updateMeal,
+  deleteMeal,
+  addMeal,
+  addMealFromRecipe,
+} from "./actions";
 import type { MealItem, DayType } from "@/lib/types";
 
 const DAY_TYPES: { value: DayType; label: string }[] = [
@@ -32,6 +40,7 @@ export default function DayEditorPage() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingMeal, setEditingMeal] = useState<number | null>(null);
+  const [showRecipePicker, setShowRecipePicker] = useState(false);
 
   useEffect(() => {
     getDayPlan(date).then((data) => {
@@ -93,6 +102,39 @@ export default function DayEditorPage() {
       total_protein: newMeals.reduce((s, m) => s + (m.protein ?? 0), 0),
     });
     setEditingMeal(newMeals.length - 1);
+  }
+
+  async function handleAddFromRecipe(
+    recipeId: string,
+    time: string,
+    label: string
+  ) {
+    if (!plan) return;
+    const newMeal = await addMealFromRecipe(
+      plan.id,
+      recipeId,
+      time,
+      label,
+      plan.meals
+    );
+    const newMeals = [...plan.meals, newMeal];
+    setPlan({
+      ...plan,
+      meals: newMeals,
+      total_kcal: newMeals.reduce((s, m) => s + m.kcal, 0),
+      total_protein: newMeals.reduce((s, m) => s + (m.protein ?? 0), 0),
+    });
+  }
+
+  function suggestNextTime(): string {
+    if (!plan || plan.meals.length === 0) return "13:00";
+    const last = plan.meals[plan.meals.length - 1].time;
+    const [h, m] = last.split(":").map(Number);
+    const next = new Date();
+    next.setHours(h, m + 180, 0, 0);
+    return `${String(next.getHours()).padStart(2, "0")}:${String(
+      next.getMinutes()
+    ).padStart(2, "0")}`;
   }
 
   if (loading) {
@@ -202,14 +244,31 @@ export default function DayEditorPage() {
         ))}
       </div>
 
-      {/* Add meal button */}
-      <button
-        onClick={handleAddMeal}
-        className="w-full rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted hover:text-accent hover:border-accent transition-colors flex items-center justify-center gap-2"
-      >
-        <Plus size={16} />
-        Añadir comida
-      </button>
+      {/* Add meal buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setShowRecipePicker(true)}
+          className="rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted hover:text-accent hover:border-accent transition-colors flex items-center justify-center gap-2"
+        >
+          <BookOpen size={16} />
+          Desde receta
+        </button>
+        <button
+          onClick={handleAddMeal}
+          className="rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted hover:text-accent hover:border-accent transition-colors flex items-center justify-center gap-2"
+        >
+          <Plus size={16} />
+          En blanco
+        </button>
+      </div>
+
+      {showRecipePicker && (
+        <RecipePickerModal
+          defaultTime={suggestNextTime()}
+          onPick={handleAddFromRecipe}
+          onClose={() => setShowRecipePicker(false)}
+        />
+      )}
     </div>
   );
 }
