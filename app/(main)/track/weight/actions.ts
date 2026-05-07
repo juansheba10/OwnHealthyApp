@@ -21,7 +21,11 @@ export async function getWeightLogs(limit: number = 90) {
   return data ?? [];
 }
 
-export async function addWeightLog(weight: number, notes?: string) {
+export async function addWeightLog(
+  weight: number,
+  notes?: string,
+  date?: string
+) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,17 +33,45 @@ export async function addWeightLog(weight: number, notes?: string) {
 
   if (!user) throw new Error("Not authenticated");
 
-  const today = new Date().toISOString().split("T")[0];
+  const target = date ?? new Date().toISOString().split("T")[0];
 
   const { error } = await supabase.from("weight_logs").upsert(
     {
       user_id: user.id,
-      date: today,
+      date: target,
       weight_kg: weight,
       notes: notes || null,
     },
     { onConflict: "user_id,date" }
   );
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/track");
+  revalidatePath("/track/weight");
+}
+
+export async function updateWeightLog(
+  id: string,
+  weight: number,
+  date: string,
+  notes?: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("weight_logs")
+    .update({
+      date,
+      weight_kg: weight,
+      notes: notes || null,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/track");
