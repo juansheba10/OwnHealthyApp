@@ -1,11 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
   toolDefinitions,
   executeTool,
   WRITE_TOOLS,
   summarizeToolCall,
 } from "@/lib/ai/tools";
+import { signState, verifyState } from "@/lib/ai/state-token";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-sonnet-4-6";
@@ -146,13 +148,16 @@ async function runLoop(state: ChatState): Promise<ProcessResult> {
           kind: "needs_confirmation",
           pendingConfirmation: {
             toolName: tu.name,
-            ...summarizeToolCall(tu.name, tu.input),
+            ...summarizeToolCall(tu.name, { ...tu.input, user_id: state.userId }),
             assistantText,
           },
           state,
         };
       }
-      const result = await executeTool(tu.name, tu.input);
+      const result = await executeTool(tu.name, {
+        ...tu.input,
+        user_id: state.userId,
+      });
       state.toolResults.push({
         type: "tool_result",
         tool_use_id: tu.id,
@@ -209,16 +214,28 @@ async function saveChat(
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const userId = body.userId as string | undefined;
-    if (!userId) {
-      return Response.json({ error: "userId is required" }, { status: 400 });
+    const authClient = await createServerClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.id;
+
+    const body = await request.json();
 
     let state: ChatState;
 
     if (body.state) {
-      const incoming = body.state as ChatState;
+      const incoming = verifyState<ChatState>(body.state, userId);
+      if (!incoming) {
+        return Response.json(
+          { error: "Invalid or expired state" },
+          { status: 400 }
+        );
+      }
+      incoming.userId = userId;
       const approved = body.approval?.approved === true;
       const tu = incoming.pendingToolUses[0];
       if (!tu) {
@@ -228,7 +245,7 @@ export async function POST(request: Request) {
         );
       }
       if (approved) {
-        const result = await executeTool(tu.name, tu.input);
+        const result = await executeTool(tu.name, { ...tu.input, user_id: userId });
         incoming.toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
@@ -296,7 +313,7 @@ export async function POST(request: Request) {
     if (result.kind === "needs_confirmation") {
       return Response.json({
         pendingConfirmation: result.pendingConfirmation,
-        state: result.state,
+        state: signState(result.state, userId),
       });
     }
 
