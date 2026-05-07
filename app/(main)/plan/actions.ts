@@ -1,6 +1,24 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+
+export async function deleteDayPlan(planId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const { error } = await supabase
+    .from("meal_plans")
+    .delete()
+    .eq("id", planId)
+    .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/plan");
+}
 
 export async function getMealPlans(startDate: string, endDate: string) {
   const supabase = await createClient();

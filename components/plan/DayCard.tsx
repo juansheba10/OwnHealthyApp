@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { MealItem } from "@/lib/types";
@@ -17,6 +17,7 @@ interface DayCardProps {
   totalProtein: number;
   targetKcal?: number;
   targetProtein?: number;
+  onDelete?: () => void | Promise<void>;
 }
 
 const DAY_TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -34,8 +35,10 @@ export function DayCard({
   totalProtein,
   targetKcal,
   targetProtein,
+  onDelete,
 }: DayCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const dayInfo = DAY_TYPE_LABELS[dayType] ?? DAY_TYPE_LABELS.training;
   const dateObj = new Date(date + "T12:00:00");
   const dayName = format(dateObj, "EEEE", { locale: es });
@@ -81,12 +84,32 @@ export function DayCard({
             />
           </div>
 
-          <Link
-            href={`/plan/${date}`}
-            className="mt-3 block text-center text-xs text-accent hover:underline"
-          >
-            Editar día
-          </Link>
+          <div className="mt-3 flex items-center justify-center gap-4">
+            <Link
+              href={`/plan/${date}`}
+              className="text-xs text-accent hover:underline"
+            >
+              Editar día
+            </Link>
+            {onDelete && (
+              <button
+                onClick={async () => {
+                  if (deleting) return;
+                  setDeleting(true);
+                  try {
+                    await onDelete();
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-pink disabled:opacity-50"
+              >
+                <Trash2 size={12} />
+                {deleting ? "Borrando…" : "Borrar día"}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
