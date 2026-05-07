@@ -28,6 +28,7 @@ export interface WorkoutInput {
   intensity: number;
   fatigue: number;
   notes?: string;
+  date?: string;
 }
 
 export async function addWorkoutLog(input: WorkoutInput) {
@@ -40,13 +41,41 @@ export async function addWorkoutLog(input: WorkoutInput) {
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: user.id,
-    date: new Date().toISOString(),
+    date: input.date ?? new Date().toISOString(),
     type: input.type,
     duration_min: input.duration_min,
     intensity: input.intensity,
     fatigue: input.fatigue,
     notes: input.notes || null,
   });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/track");
+  revalidatePath("/track/workouts");
+}
+
+export async function updateWorkoutLog(id: string, input: WorkoutInput) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const update: Record<string, unknown> = {
+    type: input.type,
+    duration_min: input.duration_min,
+    intensity: input.intensity,
+    fatigue: input.fatigue,
+    notes: input.notes || null,
+  };
+  if (input.date) update.date = input.date;
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .update(update)
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/track");

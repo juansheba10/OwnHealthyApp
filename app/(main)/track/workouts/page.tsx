@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Trash2, Clock, Zap, Battery, CalendarPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  Clock,
+  Zap,
+  Battery,
+  CalendarPlus,
+  Pencil,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getWorkoutLogs, addWorkoutLog, deleteWorkoutLog, type WorkoutInput } from "./actions";
+import {
+  getWorkoutLogs,
+  addWorkoutLog,
+  updateWorkoutLog,
+  deleteWorkoutLog,
+  type WorkoutInput,
+} from "./actions";
 import type { WorkoutType } from "@/lib/types";
 
 interface WorkoutLog {
@@ -26,11 +40,17 @@ const WORKOUT_TYPES: { value: WorkoutType; label: string; color: string }[] = [
   { value: "other", label: "Otro", color: "text-muted" },
 ];
 
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function WorkoutsPage() {
   const router = useRouter();
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     getWorkoutLogs().then((data) => {
@@ -40,10 +60,25 @@ export default function WorkoutsPage() {
   }, []);
 
   async function handleAdd(input: WorkoutInput) {
-    await addWorkoutLog(input);
-    const updated = await getWorkoutLogs();
-    setLogs(updated as WorkoutLog[]);
-    setShowForm(false);
+    try {
+      await addWorkoutLog(input);
+      const updated = await getWorkoutLogs();
+      setLogs(updated as WorkoutLog[]);
+      setShowForm(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error guardando entreno");
+    }
+  }
+
+  async function handleUpdate(id: string, input: WorkoutInput) {
+    try {
+      await updateWorkoutLog(id, input);
+      const updated = await getWorkoutLogs();
+      setLogs(updated as WorkoutLog[]);
+      setEditingId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error actualizando entreno");
+    }
   }
 
   async function handleDelete(id: string) {
@@ -119,6 +154,24 @@ export default function WorkoutsPage() {
         <div className="space-y-2">
           <h3 className="text-xs text-muted uppercase tracking-wider">Historial</h3>
           {logs.map((log) => {
+            if (editingId === log.id) {
+              return (
+                <WorkoutForm
+                  key={log.id}
+                  initial={{
+                    type: log.type,
+                    duration_min: log.duration_min,
+                    intensity: log.intensity,
+                    fatigue: log.fatigue,
+                    notes: log.notes ?? "",
+                    date: log.date,
+                  }}
+                  onSave={(input) => handleUpdate(log.id, input)}
+                  onCancel={() => setEditingId(null)}
+                  submitLabel="Guardar cambios"
+                />
+              );
+            }
             const typeInfo = WORKOUT_TYPES.find((t) => t.value === log.type) ?? WORKOUT_TYPES[4];
             return (
               <div
@@ -134,12 +187,20 @@ export default function WorkoutsPage() {
                       {format(new Date(log.date), "d MMM · HH:mm", { locale: es })}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleDelete(log.id)}
-                    className="p-1 rounded hover:bg-surface text-muted hover:text-pink"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingId(log.id)}
+                      className="p-1 rounded hover:bg-surface text-muted hover:text-accent"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(log.id)}
+                      className="p-1 rounded hover:bg-surface text-muted hover:text-pink"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted">
                   <span className="flex items-center gap-1">
@@ -168,23 +229,35 @@ export default function WorkoutsPage() {
 }
 
 function WorkoutForm({
+  initial,
   onSave,
   onCancel,
+  submitLabel = "Guardar",
 }: {
+  initial?: WorkoutInput;
   onSave: (input: WorkoutInput) => void;
   onCancel: () => void;
+  submitLabel?: string;
 }) {
-  const [form, setForm] = useState<WorkoutInput>({
-    type: "crossfit",
-    duration_min: 60,
-    intensity: 7,
-    fatigue: 6,
-    notes: "",
-  });
+  const [form, setForm] = useState<WorkoutInput>(
+    initial ?? {
+      type: "crossfit",
+      duration_min: 60,
+      intensity: 7,
+      fatigue: 6,
+      notes: "",
+    }
+  );
+  const [dateTime, setDateTime] = useState<string>(
+    initial?.date
+      ? toLocalInputValue(new Date(initial.date))
+      : toLocalInputValue(new Date())
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave(form);
+    const iso = new Date(dateTime).toISOString();
+    onSave({ ...form, date: iso });
   }
 
   return (
@@ -211,6 +284,18 @@ function WorkoutForm({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Date & time */}
+      <div>
+        <label className="block text-xs text-muted mb-1">Fecha y hora</label>
+        <input
+          type="datetime-local"
+          value={dateTime}
+          onChange={(e) => setDateTime(e.target.value)}
+          required
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text font-mono focus:border-accent focus:outline-none"
+        />
       </div>
 
       {/* Duration */}
@@ -284,7 +369,7 @@ function WorkoutForm({
           type="submit"
           className="flex-1 rounded-lg bg-accent py-2.5 text-sm font-semibold text-bg"
         >
-          Guardar
+          {submitLabel}
         </button>
       </div>
     </form>
