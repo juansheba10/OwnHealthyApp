@@ -499,6 +499,18 @@ async function addRecipe(
 
   if (error) return JSON.stringify({ error: error.message });
 
+  await supabase.from("change_log").insert({
+    user_id: input.user_id as string,
+    action: "add_recipe",
+    details: {
+      recipe_id: data.id,
+      title: data.title,
+      tags: input.tags ?? [],
+      macros: input.macros ?? null,
+      servings: input.servings ?? 1,
+    },
+  });
+
   return JSON.stringify({
     success: true,
     message: `Receta "${data.title}" añadida al catálogo`,
