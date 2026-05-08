@@ -288,37 +288,39 @@ export const toolDefinitions: Tool[] = [
 ];
 
 // Tool execution functions
+//
+// SECURITY: `userId` is the verified session user from the chat route. NEVER
+// read the user id from `input` — the model produces `input` and prompt
+// injection could otherwise let it act on behalf of another user.
 export async function executeTool(
   name: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  userId: string
 ): Promise<string> {
   switch (name) {
     case "get_user_stats":
-      return await getUserStats(
-        input.user_id as string,
-        (input.days as number) ?? 7
-      );
+      return await getUserStats(userId, (input.days as number) ?? 7);
     case "update_meal":
       return await updateMeal(
-        input.user_id as string,
+        userId,
         input.date as string,
         input.meal_index as number,
         input.new_meal as Record<string, unknown>
       );
     case "update_calorie_target":
       return await updateCalorieTarget(
-        input.user_id as string,
+        userId,
         input.day_type as string,
         input.new_target as number,
         input.reason as string
       );
     case "add_recipe":
-      return await addRecipe(input);
+      return await addRecipe(input, userId);
     case "analyze_progress":
-      return await analyzeProgress(input.user_id as string);
+      return await analyzeProgress(userId);
     case "get_training_schedule":
       return await getTrainingSchedule(
-        input.user_id as string,
+        userId,
         input.start_date as string,
         input.end_date as string
       );
@@ -326,7 +328,7 @@ export async function executeTool(
       return await listRecipes(input);
     case "generate_weekly_plan":
       return await generateWeeklyPlan(
-        input.user_id as string,
+        userId,
         input.start_date as string,
         input.days as Array<{
           date: string;
@@ -478,7 +480,8 @@ async function updateCalorieTarget(
 }
 
 async function addRecipe(
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  userId: string
 ): Promise<string> {
   const supabase = getAdminClient();
 
@@ -500,7 +503,7 @@ async function addRecipe(
   if (error) return JSON.stringify({ error: error.message });
 
   await supabase.from("change_log").insert({
-    user_id: input.user_id as string,
+    user_id: userId,
     action: "add_recipe",
     details: {
       recipe_id: data.id,

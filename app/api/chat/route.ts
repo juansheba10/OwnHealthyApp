@@ -148,16 +148,13 @@ async function runLoop(state: ChatState): Promise<ProcessResult> {
           kind: "needs_confirmation",
           pendingConfirmation: {
             toolName: tu.name,
-            ...summarizeToolCall(tu.name, { ...tu.input, user_id: state.userId }),
+            ...summarizeToolCall(tu.name, tu.input),
             assistantText,
           },
           state,
         };
       }
-      const result = await executeTool(tu.name, {
-        ...tu.input,
-        user_id: state.userId,
-      });
+      const result = await executeTool(tu.name, tu.input, state.userId);
       state.toolResults.push({
         type: "tool_result",
         tool_use_id: tu.id,
@@ -245,7 +242,7 @@ export async function POST(request: Request) {
         );
       }
       if (approved) {
-        const result = await executeTool(tu.name, { ...tu.input, user_id: userId });
+        const result = await executeTool(tu.name, tu.input, userId);
         incoming.toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
