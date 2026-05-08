@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
+import { createClient } from "@/lib/supabase/server";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-sonnet-4-6";
@@ -98,6 +99,14 @@ REGLAS:
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const prompt = body.prompt as string | undefined;
     if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
