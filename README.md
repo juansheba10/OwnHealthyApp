@@ -36,8 +36,10 @@ cp .env.local.example .env.local
 # Ejecutar migracion en Supabase (SQL Editor o CLI)
 # supabase/migrations/00001_initial_schema.sql
 
-# Crear usuarios en Supabase Auth y ejecutar seed
-# supabase/seed.sql
+# Crear usuarios en Supabase Auth, copiar la plantilla de seed,
+# rellenar UUIDs/datos reales y ejecutarla
+cp supabase/seed.example.sql supabase/seed.sql
+# editar supabase/seed.sql (gitignored) y ejecutar en Supabase
 
 # Desarrollo
 npm run dev
@@ -89,5 +91,5 @@ lib/
   types.ts            # Tipos compartidos
 supabase/
   migrations/         # SQL schema
-  seed.sql            # Datos iniciales
+  seed.example.sql    # Plantilla de datos iniciales (seed.sql real es local)
 ```

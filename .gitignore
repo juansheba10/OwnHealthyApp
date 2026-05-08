@@ -45,3 +45,7 @@ next-env.d.ts
 .claude/
 AGENTS.md
 CLAUDE.md
+
+# private seed data and design docs (use seed.example.sql instead)
+/supabase/seed.sql
+/docs/spec.md
