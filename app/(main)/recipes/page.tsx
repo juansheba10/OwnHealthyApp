@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus, Clock, Flame, X, Users, Sparkles } from "lucide-react";
-import { getRecipes, createRecipe, type RecipeInput } from "./actions";
+import { Search, Plus, Clock, Flame, X, Users, Sparkles, Trash2 } from "lucide-react";
+import { getRecipes, createRecipe, deleteRecipe, type RecipeInput } from "./actions";
 import type { Macros, Ingredient } from "@/lib/types";
 
 interface Recipe {
@@ -77,6 +77,12 @@ export default function RecipesPage() {
     setShowModal(false);
   }
 
+  async function handleDelete(id: string) {
+    await deleteRecipe(id);
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
+    setSelectedRecipe(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -145,6 +151,7 @@ export default function RecipesPage() {
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+          onDelete={handleDelete}
         />
       )}
 
@@ -200,10 +207,21 @@ function RecipeCard({ recipe, onClick }: { recipe: Recipe; onClick: () => void }
 function RecipeDetailModal({
   recipe,
   onClose,
+  onDelete,
 }: {
   recipe: Recipe;
   onClose: () => void;
+  onDelete: (id: string) => Promise<void>;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    await onDelete(recipe.id);
+    setDeleting(false);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4" onClick={onClose}>
       <div
@@ -218,9 +236,37 @@ function RecipeDetailModal({
             </h2>
             <p className="text-sm text-muted mt-1">{recipe.subtitle}</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-card text-muted hover:text-text shrink-0">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {confirmDelete ? (
+              <>
+                <span className="text-xs text-muted mr-1">¿Eliminar?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-2.5 py-1 text-xs rounded-lg bg-pink/10 text-pink border border-pink/30 hover:bg-pink/20 disabled:opacity-50"
+                >
+                  {deleting ? "…" : "Sí"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-2.5 py-1 text-xs rounded-lg bg-card text-muted border border-border hover:text-text"
+                >
+                  No
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="p-1 rounded hover:bg-card text-muted hover:text-pink shrink-0"
+                title="Eliminar receta"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1 rounded hover:bg-card text-muted hover:text-text shrink-0">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Macros bar */}
