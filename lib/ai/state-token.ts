@@ -4,9 +4,9 @@ const TTL_MS = 10 * 60 * 1000;
 const VERSION = "v1";
 
 function getSecret(): string {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = process.env.CHAT_STATE_SECRET;
   if (!secret) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required to sign chat state");
+    throw new Error("CHAT_STATE_SECRET is required to sign chat state");
   }
   return secret;
 }
