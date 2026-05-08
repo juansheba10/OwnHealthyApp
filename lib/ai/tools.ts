@@ -496,6 +496,7 @@ async function addRecipe(
       macros: input.macros ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 },
       servings: input.servings ?? 1,
       prep_time_min: input.prep_time_min ?? 0,
+      created_by: userId,
     })
     .select("id, title")
     .single();
