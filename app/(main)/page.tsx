@@ -5,7 +5,7 @@ import { Scale, Dumbbell, MessageCircle } from "lucide-react";
 import type { MealItem, CalorieTargets } from "@/lib/types";
 import { FastingTimer } from "@/components/fasting/FastingTimer";
 import { TodayMealsCard } from "@/components/plan/TodayMealsCard";
-import type { FastingSession } from "@/app/(main)/fasting/actions";
+import type { FastingSession } from "@/app/(main)/fasting/lib";
 
 export default async function DashboardPage() {
   const supabase = await createClient();

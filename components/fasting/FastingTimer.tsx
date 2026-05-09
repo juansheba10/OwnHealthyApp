@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Timer, Play, Square } from "lucide-react";
+import { startFast, stopFast } from "@/app/(main)/fasting/actions";
 import {
-  startFast,
-  stopFast,
   fastHoursForProtocol,
   type FastingSession,
-} from "@/app/(main)/fasting/actions";
+} from "@/app/(main)/fasting/lib";
 
 interface FastingTimerProps {
   initialSession: FastingSession | null;

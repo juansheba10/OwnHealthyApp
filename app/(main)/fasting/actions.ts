@@ -2,22 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-
-export interface FastingSession {
-  id: string;
-  user_id: string;
-  started_at: string;
-  target_end_at: string;
-  ended_at: string | null;
-  protocol: string | null;
-  notes: string | null;
-}
-
-export function fastHoursForProtocol(protocol: string | null): number {
-  if (!protocol) return 16;
-  const [fast] = protocol.split(":").map(Number);
-  return Number.isFinite(fast) && fast > 0 ? fast : 16;
-}
+import { fastHoursForProtocol, type FastingSession } from "./lib";
 
 export async function getActiveFast(): Promise<FastingSession | null> {
   const supabase = await createClient();
