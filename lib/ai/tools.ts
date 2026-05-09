@@ -350,7 +350,7 @@ async function getUserStats(userId: string, days: number): Promise<string> {
   since.setDate(since.getDate() - days);
   const sinceStr = since.toISOString().split("T")[0];
 
-  const [profile, weights, workouts, plans] = await Promise.all([
+  const [profile, weights, workouts, plans, fasts] = await Promise.all([
     supabase
       .from("users")
       .select("name, calorie_targets, protein_target, restrictions, fasting_protocol")
@@ -374,6 +374,12 @@ async function getUserStats(userId: string, days: number): Promise<string> {
       .eq("user_id", userId)
       .gte("date", sinceStr)
       .order("date"),
+    supabase
+      .from("fasting_sessions")
+      .select("started_at, ended_at, target_end_at, protocol, notes")
+      .eq("user_id", userId)
+      .gte("started_at", since.toISOString())
+      .order("started_at"),
   ]);
 
   return JSON.stringify({
@@ -381,6 +387,7 @@ async function getUserStats(userId: string, days: number): Promise<string> {
     weight_logs: weights.data,
     workout_logs: workouts.data,
     meal_plans: plans.data,
+    fasting_sessions: fasts.data,
     period: `últimos ${days} días`,
   });
 }

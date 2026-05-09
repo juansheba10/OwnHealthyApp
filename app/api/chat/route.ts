@@ -28,35 +28,52 @@ async function getUserContext(userId: string): Promise<string> {
   const weekAgoStr = weekAgo.toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
 
-  const [profile, weights, workouts, todayPlan] = await Promise.all([
-    supabase
-      .from("users")
-      .select(
-        "name, calorie_targets, protein_target, restrictions, fasting_protocol, profile"
-      )
-      .eq("id", userId)
-      .single(),
-    supabase
-      .from("weight_logs")
-      .select("date, weight_kg")
-      .eq("user_id", userId)
-      .gte("date", weekAgoStr)
-      .order("date", { ascending: false })
-      .limit(7),
-    supabase
-      .from("workout_logs")
-      .select("date, type, duration_min, intensity, fatigue")
-      .eq("user_id", userId)
-      .gte("date", weekAgo.toISOString())
-      .order("date", { ascending: false })
-      .limit(10),
-    supabase
-      .from("meal_plans")
-      .select("date, day_type, meals, total_kcal, total_protein")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .single(),
-  ]);
+  const [profile, weights, workouts, todayPlan, activeFast, recentFasts] =
+    await Promise.all([
+      supabase
+        .from("users")
+        .select(
+          "name, calorie_targets, protein_target, restrictions, fasting_protocol, profile"
+        )
+        .eq("id", userId)
+        .single(),
+      supabase
+        .from("weight_logs")
+        .select("date, weight_kg")
+        .eq("user_id", userId)
+        .gte("date", weekAgoStr)
+        .order("date", { ascending: false })
+        .limit(7),
+      supabase
+        .from("workout_logs")
+        .select("date, type, duration_min, intensity, fatigue")
+        .eq("user_id", userId)
+        .gte("date", weekAgo.toISOString())
+        .order("date", { ascending: false })
+        .limit(10),
+      supabase
+        .from("meal_plans")
+        .select("date, day_type, meals, total_kcal, total_protein")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .single(),
+      supabase
+        .from("fasting_sessions")
+        .select("started_at, target_end_at, protocol")
+        .eq("user_id", userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("fasting_sessions")
+        .select("started_at, ended_at, target_end_at, protocol")
+        .eq("user_id", userId)
+        .not("ended_at", "is", null)
+        .gte("started_at", weekAgo.toISOString())
+        .order("started_at", { ascending: false })
+        .limit(7),
+    ]);
 
   return `
 CONTEXTO DEL USUARIO:
@@ -64,6 +81,8 @@ CONTEXTO DEL USUARIO:
 - Peso últimos 7 días: ${JSON.stringify(weights.data)}
 - Entrenos últimos 7 días: ${JSON.stringify(workouts.data)}
 - Plan de hoy (${today}): ${JSON.stringify(todayPlan.data)}
+- Ayuno activo: ${JSON.stringify(activeFast.data)}
+- Ayunos recientes (7 días): ${JSON.stringify(recentFasts.data)}
 - Fecha actual: ${today}
 - ID del usuario: ${userId}
 `.trim();

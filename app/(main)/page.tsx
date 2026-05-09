@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Scale, Dumbbell, MessageCircle } from "lucide-react";
 import type { MealItem, CalorieTargets } from "@/lib/types";
+import { FastingTimer } from "@/components/fasting/FastingTimer";
+import type { FastingSession } from "@/app/(main)/fasting/actions";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -17,37 +19,52 @@ export default async function DashboardPage() {
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekAgoStr = weekAgo.toISOString().split("T")[0];
 
-  const [profileResult, todayPlanResult, weightResult, workoutResult] =
-    await Promise.all([
-      supabase
-        .from("users")
-        .select("name, calorie_targets, protein_target")
-        .eq("id", user.id)
-        .single(),
-      supabase
-        .from("meal_plans")
-        .select("meals, day_type, total_kcal, total_protein")
-        .eq("user_id", user.id)
-        .eq("date", today)
-        .single(),
-      supabase
-        .from("weight_logs")
-        .select("date, weight_kg")
-        .eq("user_id", user.id)
-        .gte("date", weekAgoStr)
-        .order("date", { ascending: false }),
-      supabase
-        .from("workout_logs")
-        .select("date, type, duration_min")
-        .eq("user_id", user.id)
-        .gte("date", weekAgo.toISOString())
-        .order("date", { ascending: false }),
-    ]);
+  const [
+    profileResult,
+    todayPlanResult,
+    weightResult,
+    workoutResult,
+    activeFastResult,
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select("name, calorie_targets, protein_target, fasting_protocol")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("meal_plans")
+      .select("meals, day_type, total_kcal, total_protein")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single(),
+    supabase
+      .from("weight_logs")
+      .select("date, weight_kg")
+      .eq("user_id", user.id)
+      .gte("date", weekAgoStr)
+      .order("date", { ascending: false }),
+    supabase
+      .from("workout_logs")
+      .select("date, type, duration_min")
+      .eq("user_id", user.id)
+      .gte("date", weekAgo.toISOString())
+      .order("date", { ascending: false }),
+    supabase
+      .from("fasting_sessions")
+      .select("*")
+      .eq("user_id", user.id)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const profile = profileResult.data;
   const todayPlan = todayPlanResult.data;
   const weights = weightResult.data ?? [];
   const workouts = workoutResult.data ?? [];
+  const activeFast = (activeFastResult.data as FastingSession | null) ?? null;
+  const fastingProtocol = (profile?.fasting_protocol as string | null) ?? null;
 
   const dayName = new Intl.DateTimeFormat("es-ES", {
     weekday: "long",
@@ -136,6 +153,14 @@ export default async function DashboardPage() {
           <p className="text-sm text-muted">No hay plan para hoy</p>
         )}
       </div>
+
+      {/* Fasting timer */}
+      {(fastingProtocol || activeFast) && (
+        <FastingTimer
+          initialSession={activeFast}
+          protocol={fastingProtocol}
+        />
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3">
