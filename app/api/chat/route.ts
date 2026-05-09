@@ -11,7 +11,7 @@ import { signState, verifyState } from "@/lib/ai/state-token";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 1024;
+const MAX_TOKENS = 8192;
 
 function getAdminClient() {
   return createClient(
