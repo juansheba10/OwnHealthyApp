@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Scale, Dumbbell, MessageCircle } from "lucide-react";
 import type { MealItem, CalorieTargets } from "@/lib/types";
 import { FastingTimer } from "@/components/fasting/FastingTimer";
+import { TodayMealsCard } from "@/components/plan/TodayMealsCard";
 import type { FastingSession } from "@/app/(main)/fasting/actions";
 
 export default async function DashboardPage() {
@@ -25,6 +26,7 @@ export default async function DashboardPage() {
     weightResult,
     workoutResult,
     activeFastResult,
+    todayLogsResult,
   ] = await Promise.all([
     supabase
       .from("users")
@@ -33,7 +35,7 @@ export default async function DashboardPage() {
       .single(),
     supabase
       .from("meal_plans")
-      .select("meals, day_type, total_kcal, total_protein")
+      .select("id, meals, day_type, total_kcal, total_protein")
       .eq("user_id", user.id)
       .eq("date", today)
       .single(),
@@ -57,6 +59,11 @@ export default async function DashboardPage() {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("meal_logs")
+      .select("id, meal_time")
+      .eq("user_id", user.id)
+      .eq("date", today),
   ]);
 
   const profile = profileResult.data;
@@ -65,6 +72,14 @@ export default async function DashboardPage() {
   const workouts = workoutResult.data ?? [];
   const activeFast = (activeFastResult.data as FastingSession | null) ?? null;
   const fastingProtocol = (profile?.fasting_protocol as string | null) ?? null;
+  const todayLogs = (todayLogsResult.data ?? []) as {
+    id: string;
+    meal_time: string;
+  }[];
+  const loggedByTime = todayLogs.reduce<Record<string, string>>((acc, log) => {
+    acc[log.meal_time.slice(0, 5)] = log.id;
+    return acc;
+  }, {});
 
   const dayName = new Intl.DateTimeFormat("es-ES", {
     weekday: "long",
@@ -74,12 +89,6 @@ export default async function DashboardPage() {
 
   // Today's meals
   const meals = (todayPlan?.meals ?? []) as MealItem[];
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const nextMealIndex = meals.findIndex((m) => {
-    const [h, min] = m.time.split(":").map(Number);
-    return h * 60 + min > currentMinutes;
-  });
 
   // Weight
   const lastWeight = weights[0] ? Number(weights[0].weight_kg) : null;
@@ -106,53 +115,13 @@ export default async function DashboardPage() {
       </div>
 
       {/* Today's meals */}
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs text-muted uppercase tracking-wider">
-            Comidas de hoy
-            {todayPlan && (
-              <span className="ml-2 text-accent">
-                {todayPlan.total_kcal} kcal
-                {targetKcal && ` / ${targetKcal}`}
-              </span>
-            )}
-          </h3>
-          <Link href="/plan" className="text-xs text-accent hover:underline">
-            Ver plan
-          </Link>
-        </div>
-        {meals.length > 0 ? (
-          <div className="space-y-2">
-            {meals.map((meal, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                  i === nextMealIndex
-                    ? "bg-accent/10 border border-accent/20"
-                    : "bg-surface"
-                }`}
-              >
-                <span className="font-mono text-xs text-muted w-12">
-                  {meal.time}
-                </span>
-                <span className="text-sm text-text flex-1 truncate">
-                  {meal.name}
-                </span>
-                <span className="font-mono text-xs text-muted">
-                  {meal.kcal}
-                </span>
-                {i === nextMealIndex && (
-                  <span className="text-[10px] text-accent font-medium">
-                    SIGUIENTE
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted">No hay plan para hoy</p>
-        )}
-      </div>
+      <TodayMealsCard
+        planId={(todayPlan?.id as string | undefined) ?? null}
+        meals={meals}
+        totalKcal={todayPlan?.total_kcal ?? 0}
+        targetKcal={targetKcal}
+        initialLoggedByTime={loggedByTime}
+      />
 
       {/* Fasting timer */}
       {(fastingProtocol || activeFast) && (
