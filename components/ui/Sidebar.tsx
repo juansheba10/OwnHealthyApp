@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Settings,
   BookOpen,
+  Trophy,
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/plan", label: "Plan", icon: UtensilsCrossed },
   { href: "/recipes", label: "Recetas", icon: BookOpen },
   { href: "/track", label: "Tracking", icon: Activity },
+  { href: "/hyrox", label: "Hyrox", icon: Trophy },
   { href: "/shopping", label: "Compra", icon: ShoppingCart },
   { href: "/chat", label: "Chat IA", icon: MessageCircle },
   { href: "/settings", label: "Ajustes", icon: Settings },
