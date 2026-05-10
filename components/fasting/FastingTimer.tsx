@@ -31,14 +31,22 @@ function formatTime(date: Date): string {
 
 export function FastingTimer({ initialSession, protocol }: FastingTimerProps) {
   const [session, setSession] = useState<FastingSession | null>(initialSession);
-  const [now, setNow] = useState(() => Date.now());
+  // Seed `now` from the session start so SSR and first client render produce the
+  // same pct (0%). The effect bumps it to the real current time after mount.
+  const [now, setNow] = useState(() =>
+    initialSession ? new Date(initialSession.started_at).getTime() : 0,
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
+    const initial = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(id);
+    };
   }, [session]);
 
   const protocolLabel = protocol ?? `${fastHoursForProtocol(protocol)}:?`;
