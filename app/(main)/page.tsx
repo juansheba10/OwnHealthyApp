@@ -5,6 +5,12 @@ import { Scale, Dumbbell, MessageCircle } from "lucide-react";
 import type { MealItem, CalorieTargets } from "@/lib/types";
 import { FastingTimer } from "@/components/fasting/FastingTimer";
 import { TodayMealsCard } from "@/components/plan/TodayMealsCard";
+import { TodayHyroxCard } from "@/components/hyrox/TodayHyroxCard";
+import {
+  getSessionForDate,
+  daysUntilRace,
+  isoDate,
+} from "@/lib/hyrox/plan";
 import type { FastingSession } from "@/app/(main)/fasting/lib";
 
 export default async function DashboardPage() {
@@ -47,7 +53,7 @@ export default async function DashboardPage() {
       .order("date", { ascending: false }),
     supabase
       .from("workout_logs")
-      .select("date, type, duration_min")
+      .select("date, type, duration_min, notes")
       .eq("user_id", user.id)
       .gte("date", weekAgo.toISOString())
       .order("date", { ascending: false }),
@@ -69,7 +75,12 @@ export default async function DashboardPage() {
   const profile = profileResult.data;
   const todayPlan = todayPlanResult.data;
   const weights = weightResult.data ?? [];
-  const workouts = workoutResult.data ?? [];
+  const workouts = (workoutResult.data ?? []) as {
+    date: string;
+    type: string;
+    duration_min: number;
+    notes: string | null;
+  }[];
   const activeFast = (activeFastResult.data as FastingSession | null) ?? null;
   const fastingProtocol = (profile?.fasting_protocol as string | null) ?? null;
   const todayLogs = (todayLogsResult.data ?? []) as {
@@ -104,6 +115,27 @@ export default async function DashboardPage() {
     ? calorieTargets[todayPlan.day_type as keyof CalorieTargets]
     : undefined;
 
+  // Today's Hyrox session
+  const now = new Date();
+  const hyrox = getSessionForDate(now);
+  const todayIso = isoDate(now);
+  let hyroxStatus: "done" | "skipped" | "replaced" | null = null;
+  if (hyrox) {
+    const prefix = `Hyrox S${hyrox.week.w} · ${hyrox.session.day}`;
+    const todaysHyroxLog = workouts.find(
+      (w) => w.date.slice(0, 10) === todayIso && (w.notes ?? "").startsWith(prefix),
+    );
+    if (todaysHyroxLog) {
+      const note = todaysHyroxLog.notes ?? "";
+      hyroxStatus = note.includes("[SALTADA]")
+        ? "skipped"
+        : note.includes("[REEMPLAZADA]")
+          ? "replaced"
+          : "done";
+    }
+  }
+  const raceCountdown = daysUntilRace(now);
+
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -122,6 +154,20 @@ export default async function DashboardPage() {
         targetKcal={targetKcal}
         initialLoggedByTime={loggedByTime}
       />
+
+      {/* Today's Hyrox session */}
+      {hyrox && (
+        <TodayHyroxCard
+          weekNum={hyrox.week.w}
+          phase={hyrox.week.phase}
+          weekFocus={hyrox.week.focus}
+          weekDateLabel={hyrox.week.dateLabel}
+          day={hyrox.session.day}
+          session={hyrox.session}
+          initialStatus={hyroxStatus}
+          daysUntilRace={raceCountdown}
+        />
+      )}
 
       {/* Fasting timer */}
       {(fastingProtocol || activeFast) && (
