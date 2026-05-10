@@ -3,14 +3,31 @@ import { redirect } from "next/navigation";
 import {
   HYROX_WEEKS,
   HYROX_RACE_VENUE,
+  HYROX_PLAN_START,
+  HYROX_RACE_DATE,
   getWeekForDate,
   daysUntilRace,
 } from "@/lib/hyrox/plan";
-import { HyroxPlanView } from "./HyroxPlanView";
+import type { HyroxSessionStatus } from "./actions";
+import { HyroxPlanView, type SessionStatusMap } from "./HyroxPlanView";
 
 export const metadata = {
   title: "Plan Hyrox · NutriTrack",
 };
+
+const HYROX_NOTE_RE = /^Hyrox S(\d+) · ([^\s\[]+)(\s\[(SALTADA|REEMPLAZADA)\])?/;
+
+function parseHyroxNote(
+  notes: string | null,
+): { weekNum: number; day: string; status: HyroxSessionStatus } | null {
+  if (!notes) return null;
+  const m = HYROX_NOTE_RE.exec(notes);
+  if (!m) return null;
+  const tag = m[4];
+  const status: HyroxSessionStatus =
+    tag === "SALTADA" ? "skipped" : tag === "REEMPLAZADA" ? "replaced" : "done";
+  return { weekNum: Number(m[1]), day: m[2], status };
+}
 
 export default async function HyroxPage() {
   const supabase = await createClient();
@@ -23,12 +40,28 @@ export default async function HyroxPage() {
   const currentWeek = getWeekForDate(today);
   const days = daysUntilRace(today);
 
+  const { data: logs } = await supabase
+    .from("workout_logs")
+    .select("notes, date")
+    .eq("user_id", user.id)
+    .gte("date", `${HYROX_PLAN_START}T00:00:00Z`)
+    .lte("date", `${HYROX_RACE_DATE}T23:59:59Z`)
+    .like("notes", "Hyrox %");
+
+  const statusMap: SessionStatusMap = {};
+  for (const row of logs ?? []) {
+    const parsed = parseHyroxNote(row.notes);
+    if (!parsed) continue;
+    statusMap[`${parsed.weekNum}-${parsed.day}`] = parsed.status;
+  }
+
   return (
     <HyroxPlanView
       weeks={HYROX_WEEKS}
       currentWeekNum={currentWeek?.w ?? null}
       raceVenue={HYROX_RACE_VENUE}
       daysUntilRace={days}
+      statusMap={statusMap}
     />
   );
 }

@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check, X, Repeat } from "lucide-react";
 import {
   HYROX_PHASES,
   HYROX_SESSION_TYPES,
+  getSessionDateLabel,
+  type HyroxDayCode,
   type HyroxPhaseId,
+  type HyroxSession,
   type HyroxWeek,
 } from "@/lib/hyrox/plan";
+import type { HyroxSessionStatus } from "./actions";
+import { SessionDetailModal } from "@/components/hyrox/SessionDetailModal";
+
+export type SessionStatusMap = Record<string, HyroxSessionStatus>;
 
 type FilterValue = "all" | HyroxPhaseId;
 
@@ -32,6 +39,16 @@ interface Props {
   currentWeekNum: number | null;
   raceVenue: string;
   daysUntilRace: number;
+  statusMap: SessionStatusMap;
+}
+
+interface OpenSessionCoord {
+  week: HyroxWeek;
+  session: HyroxSession;
+}
+
+function statusKey(weekNum: number, day: HyroxDayCode): string {
+  return `${weekNum}-${day}`;
 }
 
 export function HyroxPlanView({
@@ -39,11 +56,13 @@ export function HyroxPlanView({
   currentWeekNum,
   raceVenue,
   daysUntilRace,
+  statusMap,
 }: Props) {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [expanded, setExpanded] = useState<Set<number>>(
     () => new Set(currentWeekNum ? [currentWeekNum] : []),
   );
+  const [openSession, setOpenSession] = useState<OpenSessionCoord | null>(null);
 
   const visible = filter === "all" ? weeks : weeks.filter((w) => w.phase === filter);
 
@@ -267,10 +286,15 @@ export function HyroxPlanView({
                       <div className="border-t border-border py-1">
                         {week.sessions.map((s) => {
                           const st = HYROX_SESSION_TYPES[s.type];
+                          const status = statusMap[statusKey(week.w, s.day)] ?? null;
                           return (
-                            <div
+                            <button
                               key={s.day}
-                              className="grid grid-cols-[40px_82px_1fr] items-center gap-0 border-b border-border last:border-b-0 sm:grid-cols-[56px_120px_1fr]"
+                              type="button"
+                              onClick={() =>
+                                setOpenSession({ week, session: s })
+                              }
+                              className="grid w-full grid-cols-[40px_82px_1fr_auto] items-center gap-0 border-b border-border text-left transition-colors last:border-b-0 hover:bg-surface sm:grid-cols-[56px_120px_1fr_auto]"
                             >
                               <div className="py-2 text-center font-mono text-[10px] font-medium uppercase tracking-wider text-muted">
                                 {s.day}
@@ -285,10 +309,13 @@ export function HyroxPlanView({
                                 </span>
                               </div>
                               <div
-                                className="py-2 pr-3 text-[13px] font-light text-muted [&_strong]:font-medium [&_strong]:text-text"
+                                className="py-2 pr-2 text-[13px] font-light text-muted [&_strong]:font-medium [&_strong]:text-text"
                                 dangerouslySetInnerHTML={{ __html: s.desc }}
                               />
-                            </div>
+                              <div className="pr-3">
+                                <SessionStatusBadge status={status} />
+                              </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -300,7 +327,50 @@ export function HyroxPlanView({
           );
         })}
       </div>
+
+      {openSession && (
+        <SessionDetailModal
+          weekNum={openSession.week.w}
+          phase={openSession.week.phase}
+          weekFocus={openSession.week.focus}
+          day={openSession.session.day}
+          session={openSession.session}
+          sessionDateLabel={getSessionDateLabel(
+            openSession.week,
+            openSession.session.day,
+          )}
+          initialStatus={
+            statusMap[
+              statusKey(openSession.week.w, openSession.session.day)
+            ] ?? null
+          }
+          onClose={() => setOpenSession(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function SessionStatusBadge({ status }: { status: HyroxSessionStatus | null }) {
+  if (!status) return null;
+  if (status === "done") {
+    return (
+      <span className="flex items-center gap-1 rounded bg-accent2/15 px-1.5 py-0.5 font-mono text-[10px] text-accent2">
+        <Check size={10} />
+      </span>
+    );
+  }
+  if (status === "skipped") {
+    return (
+      <span className="flex items-center gap-1 rounded bg-pink/15 px-1.5 py-0.5 font-mono text-[10px] text-pink">
+        <X size={10} />
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 rounded bg-blue/15 px-1.5 py-0.5 font-mono text-[10px] text-blue">
+      <Repeat size={10} />
+    </span>
   );
 }
 
