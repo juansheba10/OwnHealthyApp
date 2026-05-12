@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NutriTrack",
+  title: "OwnHealthyApp",
   description: "Plan nutricional, lista de compra y tracking de salud",
 };
 

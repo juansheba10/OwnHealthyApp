@@ -84,7 +84,7 @@ const draftRecipeTool: Tool = {
   },
 };
 
-const SYSTEM_PROMPT = `Eres un nutricionista que diseña recetas para una webapp de tracking nutricional (NutriTrack). Recetas en español.
+const SYSTEM_PROMPT = `Eres un nutricionista que diseña recetas para una webapp de tracking nutricional (OwnHealthyApp). Recetas en español.
 
 REGLAS:
 1. Macros realistas y coherentes: 4*proteína + 4*carbos + 9*grasa ≈ kcal (margen ±10%).

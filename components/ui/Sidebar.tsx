@@ -31,7 +31,7 @@ export function Sidebar() {
     <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r border-border bg-surface">
       <div className="p-6">
         <h1 className="font-display text-3xl tracking-wide text-accent uppercase">
-          NutriTrack
+          OwnHealthyApp
         </h1>
       </div>
       <nav className="flex-1 px-3 space-y-1">

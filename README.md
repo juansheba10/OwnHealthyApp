@@ -1,154 +1,160 @@
-# NutriTrack
+# OwnHealthyApp
 
-Webapp privada de nutrición y entrenamiento para 2 usuarios pre-creados. Une el plan semanal de comidas, el catálogo de recetas, la lista de compra, el tracking de peso y entrenos, y un asistente de IA que puede leer y modificar el plan bajo confirmación del usuario.
+Personal nutrition and training tracker. Brings together the weekly meal plan, recipe catalog, shopping list, weight and workout tracking, and an AI assistant that can read and modify the plan with user confirmation.
 
-No es un producto público: las cuentas se crean a mano en Supabase y la app está diseñada alrededor de una rutina concreta (protocolo de ayuno, días de CrossFit / Hyrox / fútbol, objetivos calóricos por tipo de día).
+It's not a SaaS — there's no signup. The codebase is shared for reference. The app runs for 2 hand-provisioned users and is built around a specific routine (intermittent fasting protocol, CrossFit / Hyrox / football days, calorie targets per day type).
 
-## Qué hace la app
+## What the app does
 
-### Plan semanal de comidas
+### Weekly meal plan
 
-Cada usuario tiene un plan de 7 días. Cada día declara su `day_type` — `training`, `rest`, `double` o `football_only` — y ese tipo determina el objetivo calórico que aplica (los objetivos viven en `users.calorie_targets`, un jsonb por tipo de día).
+Each user has a 7-day plan. Each day declares its `day_type` — `training`, `rest`, `double`, or `football_only` — and that type drives which calorie target applies (targets live in `users.calorie_targets`, a jsonb keyed by day type).
 
-Las comidas se editan por día: hora, etiqueta (desayuno, comida, cena, snack…), nombre, lista de ingredientes en texto plano (ej. `"150g arroz integral"`), kcal y proteína. La tabla `meal_plans` es `unique (user_id, date)` y se sobrescribe al regenerar un día.
+Meals are edited per day: time, label (breakfast, lunch, dinner, snack…), name, ingredient list as plain text (e.g. `"150g brown rice"`), kcal and protein. The `meal_plans` table is `unique (user_id, date)` and gets overwritten when a day is regenerated.
 
-### Catálogo de recetas
+### Recipe catalog
 
-Las recetas son **compartidas entre los dos usuarios** (cualquiera lee/añade/edita). Tienen ingredientes estructurados, tags, macros, instrucciones y filtros por tag + búsqueda de texto. Las comidas del plan pueden enlazar a una receta vía `recipe_id`.
+Recipes are **shared between both users** (anyone can read/add/edit). They have structured ingredients, tags, macros, instructions, and tag + text filters. Plan meals can link to a recipe via `recipe_id`.
 
-### Lista de compra autogenerada
+### Auto-generated shopping list
 
-A partir de los días seleccionados del plan, `lib/utils/shopping.ts` parsea las cadenas de ingredientes con regex, agrupa por `(nombre, unidad)`, suma cantidades y asigna categoría según un mapa de palabras clave en español (`CATEGORY_MAP`). El resultado es una lista marcable que se persiste en `shopping_lists`.
+Given a selection of days from the plan, `lib/utils/shopping.ts` parses the ingredient strings with regex, groups by `(name, unit)`, sums quantities, and assigns a category from a Spanish keyword map (`CATEGORY_MAP`). The result is a checkable list persisted in `shopping_lists`.
 
-### Tracking de peso
+### Weight tracking
 
-Registro diario o puntual. Vista con gráfica de evolución (Recharts) y comparación contra el objetivo del usuario.
+Daily or one-off entries. Chart view (Recharts) with comparison against the user's target.
 
-### Tracking de entrenamientos
+### Workout tracking
 
-Dos tablas separadas:
-- `workout_plans` — sesiones planificadas / próximas (lo que el usuario *va* a hacer).
-- `workout_logs` — sesiones completadas, con tipo (`crossfit | hyrox | football | running | other`), intensidad e intensidad percibida.
+Two separate tables:
+- `workout_plans` — planned / upcoming sessions (what the user *is going to* do).
+- `workout_logs` — completed sessions, with type (`crossfit | hyrox | football | running | other`), intensity, and perceived effort.
 
-Resumen semanal por tipo de entreno y volumen.
+Weekly summary by workout type and volume.
 
-### Chat IA con tool-use y confirmación
+### AI chat with tool-use and confirmation
 
-El asistente (Claude Sonnet 4.6, `app/api/chat/route.ts`) tiene contexto del usuario inyectado en el primer turno (perfil, peso reciente, entrenos, plan de hoy) y acceso a tools tipadas:
+The assistant (Claude Sonnet 4.6, `app/api/chat/route.ts`) gets user context injected on the first turn (profile, recent weight, workouts, today's plan) and has access to typed tools:
 
-**Lectura — se ejecutan sin pedir permiso:**
-- `get_user_stats` — peso reciente, entrenos, adherencia, fatiga.
-- `analyze_progress` — diagnóstico contra objetivos.
-- `get_training_schedule` — calendario de entrenos planificados (se invoca antes de generar plan).
-- `list_recipes` — busca en el catálogo compartido.
+**Read — executed without asking:**
+- `get_user_stats` — recent weight, workouts, adherence, fatigue.
+- `analyze_progress` — diagnostic against goals.
+- `get_training_schedule` — planned workout calendar (called before generating a plan).
+- `list_recipes` — search the shared catalog.
 
-**Escritura — pausan el loop y piden confirmación al usuario:**
-- `update_meal` — sustituye una comida concreta de un día.
-- `update_calorie_target` — ajusta kcal objetivo para un `day_type`.
-- `add_recipe` — añade receta al catálogo.
-- `generate_weekly_plan` — genera 7 días respetando el calendario de entrenos.
+**Write — pause the loop and ask the user for confirmation:**
+- `update_meal` — replace a specific meal on a given day.
+- `update_calorie_target` — adjust kcal target for a `day_type`.
+- `add_recipe` — add a recipe to the catalog.
+- `generate_weekly_plan` — generate 7 days respecting the workout calendar.
 
-El cliente renderiza `ConfirmCard` con el resumen de la acción; el usuario aprueba o rechaza, y el endpoint reanuda el loop. Cada escritura aprobada queda registrada en `change_log` como auditoría.
+The client renders `ConfirmCard` with a summary of the action; the user approves or rejects, and the endpoint resumes the loop. Each approved write is recorded in `change_log` as an audit trail.
 
-### Ajustes
+### Settings
 
-Edición de perfil, objetivos calóricos por tipo de día, restricciones, protocolo de ayuno y exportación de datos.
+Profile editing, calorie targets per day type, restrictions, fasting protocol, and data export.
 
-## Modelo de datos
+## Data model
 
-Schema en `supabase/migrations/`:
+Schema in `supabase/migrations/`:
 
-- `users` extiende `auth.users` con `calorie_targets` (jsonb por `day_type`), `restrictions` y `fasting_protocol`.
-- `meal_plans` — un registro por `(user_id, date)`.
-- `recipes` — compartidas entre usuarios autenticados.
-- `weight_logs`, `workout_logs`, `meal_logs`, `chat_messages`, `shopping_lists` — restringidos a `auth.uid() = user_id` por RLS.
-- `workout_plans` — sesiones planificadas (separado de `workout_logs`).
-- `change_log` — audit trail de las escrituras hechas por la IA.
+- `users` extends `auth.users` with `calorie_targets` (jsonb keyed by `day_type`), `restrictions`, and `fasting_protocol`.
+- `meal_plans` — one row per `(user_id, date)`.
+- `recipes` — shared between authenticated users.
+- `weight_logs`, `workout_logs`, `meal_logs`, `chat_messages`, `shopping_lists` — restricted to `auth.uid() = user_id` via RLS.
+- `workout_plans` — planned sessions (separate from `workout_logs`).
+- `change_log` — audit trail for AI-driven writes.
 
-## Seguridad: dos clientes Supabase
+## Security: two Supabase clients
 
-Hay **dos clientes y elegir mal es un fallo de seguridad**:
+There are **two clients and picking the wrong one is a security bug**:
 
-- `lib/supabase/server.ts` y `lib/supabase/client.ts` — anon key + cookie de sesión. **RLS aplica.** Es lo que usa toda la app de cara al usuario.
-- Cliente admin con `SUPABASE_SERVICE_ROLE_KEY` — solo en `lib/ai/tools.ts` y `app/api/chat/route.ts`. **Bypassa RLS.** Solo se usa dentro de tools donde `userId` se pasa explícito.
+- `lib/supabase/server.ts` and `lib/supabase/client.ts` — anon key + session cookie. **RLS applies.** Used everywhere user-facing.
+- Admin client built with `SUPABASE_SERVICE_ROLE_KEY` — only in `lib/ai/tools.ts` and `app/api/chat/route.ts`. **Bypasses RLS.** Only used inside tools where `userId` is passed explicitly and trusted.
 
-`middleware.ts` corre en todas las rutas no-asset, refresca la sesión y redirige no-autenticados a `/login`. Todo `app/(main)/*` asume sesión válida.
+`middleware.ts` runs on every non-asset route, refreshes the session, and redirects unauthenticated users to `/login`. Everything under `app/(main)/*` assumes a valid session.
 
 ## Stack
 
 - **Next.js 16.2** (App Router, React 19, Server Components, Server Actions)
-- **Tailwind CSS v4** — tema oscuro, mobile-first
+- **Tailwind CSS v4** — dark theme, mobile-first
 - **Supabase** — Postgres + Auth + Row Level Security
-- **Anthropic SDK** — Claude Sonnet 4.6 con tool use
-- **Recharts** — gráfica de peso
+- **Anthropic SDK** — Claude Sonnet 4.6 with tool use
+- **Recharts** — weight chart
 - **Vercel** — hosting
 
-## Setup local
+## Local setup
 
 ```bash
 npm install
 
 cp .env.local.example .env.local
-# Rellenar .env.local con claves de Supabase y Anthropic
+# Fill .env.local with Supabase and Anthropic keys
 
-# Aplicar migraciones en Supabase (SQL Editor o CLI)
+# Apply migrations in Supabase (SQL Editor or CLI), in order:
 #   supabase/migrations/00001_initial_schema.sql
 #   supabase/migrations/00002_workout_plans.sql
+#   supabase/migrations/00003_recipes_ownership.sql
+#   supabase/migrations/00004_shopping_lists_strict_owner.sql
+#   supabase/migrations/00005_fasting_sessions.sql
+#   supabase/migrations/00006_meal_logs_delete_policy.sql
+#   supabase/migrations/00007_recipe_favorites.sql
 
-# Crear usuarios en Supabase Auth y luego seedear datos iniciales
+# Create users in Supabase Auth, then seed initial data
 cp supabase/seed.example.sql supabase/seed.sql
-# Editar supabase/seed.sql (gitignored) con UUIDs/datos reales y ejecutar
+# Edit supabase/seed.sql (gitignored) with real UUIDs/data and run it
 
 npm run dev   # http://localhost:3000
 ```
 
-## Variables de entorno
+## Environment variables
 
-| Variable | Descripción | Exposición |
-|----------|-------------|------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | Pública |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key (RLS aplica) | Pública |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role (bypassa RLS) | **Solo servidor** |
-| `ANTHROPIC_API_KEY` | API key de Anthropic | **Solo servidor** |
+| Variable | Description | Exposure |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Public |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon / publishable key (RLS applies) | Public |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role / secret key (bypasses RLS) | **Server only** |
+| `ANTHROPIC_API_KEY` | Anthropic API key | **Server only** |
+| `CHAT_STATE_SECRET` | HMAC secret for chat state tokens (32+ random bytes; `openssl rand -hex 32`) | **Server only** |
 
-## Comandos
+## Commands
 
 ```bash
-npm run dev       # Servidor de desarrollo
-npm run build     # Build de producción
+npm run dev       # Dev server
+npm run build     # Production build
 npm run lint      # ESLint (flat config)
 npm run format    # Prettier
 ```
 
-No hay test runner configurado. El alias `@/*` apunta a la raíz del repo.
+No test runner configured. The `@/*` alias resolves from the repo root.
 
-## Estructura
+## Layout
 
 ```
 app/
-  (auth)/login/         # Login público
-  (main)/               # Layout autenticado con Sidebar + BottomNav
-    page.tsx            # Dashboard (comidas de hoy, peso, entrenos)
-    plan/               # Plan semanal y editor por día
-    recipes/            # Catálogo compartido + filtros
-    shopping/           # Lista de compra autogenerada
+  (auth)/login/         # Public login page
+  (main)/               # Authenticated layout with Sidebar + BottomNav
+    page.tsx            # Dashboard (today's meals, weight, workouts)
+    plan/               # Weekly plan and per-day editor
+    recipes/            # Shared catalog + filters
+    shopping/           # Auto-generated shopping list
     track/
-      weight/           # Peso + gráfica
-      workouts/         # Logs y planificación
-    chat/               # Chat IA con confirmación de acciones
-    settings/           # Perfil, objetivos, exportación
-  api/chat/route.ts     # Único endpoint API (loop de tool use)
+      weight/           # Weight + chart
+      workouts/         # Logs and planning
+    chat/               # AI chat with action confirmation
+    settings/           # Profile, targets, export
+  api/chat/route.ts     # Only API route (tool-use loop)
 components/
   ui/                   # Sidebar, BottomNav
   plan/                 # DayCard, MealBlock, MacrosBar
   tracking/             # WeightChart
   chat/                 # ChatMessage, ChatInput, ConfirmCard
 lib/
-  supabase/             # Clientes browser, server, middleware
-  ai/                   # Tool definitions, ejecución, state token
-  utils/                # Fechas, shopping aggregation
-  types.ts              # Tipos compartidos (DayType, Macros, etc.)
+  supabase/             # Browser, server, and middleware clients
+  ai/                   # Tool definitions, execution, state token
+  utils/                # Dates, shopping aggregation
+  types.ts              # Shared types (DayType, Macros, etc.)
 supabase/
-  migrations/           # Schema SQL versionado
-  seed.example.sql      # Plantilla (seed.sql real es local/gitignored)
+  migrations/           # Versioned schema SQL
+  seed.example.sql      # Template (real seed.sql is local / gitignored)
 ```

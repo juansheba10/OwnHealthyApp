@@ -53,7 +53,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `nutritrack-export-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `ownhealthyapp-export-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

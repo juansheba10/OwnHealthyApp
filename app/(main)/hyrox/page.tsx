@@ -16,7 +16,7 @@ import {
 } from "./HyroxPlanView";
 
 export const metadata = {
-  title: "Plan Hyrox · NutriTrack",
+  title: "Plan Hyrox · OwnHealthyApp",
 };
 
 const HYROX_NOTE_RE =

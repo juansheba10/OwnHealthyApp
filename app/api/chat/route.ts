@@ -96,7 +96,7 @@ CONTEXTO DEL USUARIO:
 `.trim();
 }
 
-const SYSTEM_PROMPT = `Eres el asistente nutricional de NutriTrack. Ayudas a los usuarios a gestionar su plan de comidas, tracking de peso y entrenamientos.
+const SYSTEM_PROMPT = `Eres el asistente nutricional de OwnHealthyApp. Ayudas a los usuarios a gestionar su plan de comidas, tracking de peso y entrenamientos.
 
 REGLAS GENERALES:
 1. SIEMPRE lee los datos reales del usuario con get_user_stats antes de dar consejos. NUNCA inventes datos.
