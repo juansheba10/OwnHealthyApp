@@ -81,10 +81,15 @@ export default async function DashboardPage() {
     duration_min: number;
     notes: string | null;
   }[];
-  // For stats display — excludes Hyrox status-only markers
+  // For stats display — excludes Hyrox status-only markers. [REEMPLAZO_PLAN]
+  // is a planned (not yet completed) replacement and must also be excluded.
   const realWorkouts = workouts.filter((w) => {
     const notes = w.notes ?? "";
-    return !notes.includes("[SALTADA]") && !notes.includes("[REEMPLAZADA]");
+    return (
+      !notes.includes("[SALTADA]") &&
+      !notes.includes("[REEMPLAZADA]") &&
+      !notes.includes("[REEMPLAZO_PLAN]")
+    );
   });
   const activeFast = (activeFastResult.data as FastingSession | null) ?? null;
   const fastingProtocol = (profile?.fasting_protocol as string | null) ?? null;
@@ -124,7 +129,17 @@ export default async function DashboardPage() {
   const now = new Date();
   const hyrox = getSessionForDate(now);
   const todayIso = isoDate(now);
-  let hyroxStatus: "done" | "skipped" | "replaced" | null = null;
+  let hyroxStatus:
+    | "done"
+    | "skipped"
+    | "replaced"
+    | "replaced_planned"
+    | null = null;
+  let hyroxReplacement: {
+    type: string;
+    duration_min: number;
+    notes: string;
+  } | null = null;
   if (hyrox) {
     const prefix = `Hyrox S${hyrox.week.w} · ${hyrox.session.day}`;
     const todaysHyroxLog = workouts.find(
@@ -132,11 +147,21 @@ export default async function DashboardPage() {
     );
     if (todaysHyroxLog) {
       const note = todaysHyroxLog.notes ?? "";
-      hyroxStatus = note.includes("[SALTADA]")
-        ? "skipped"
-        : note.includes("[REEMPLAZADA]")
-          ? "replaced"
-          : "done";
+      if (note.includes("[REEMPLAZO_PLAN]")) {
+        hyroxStatus = "replaced_planned";
+        const userNote = /\[REEMPLAZO_PLAN\](?:\s+—\s+(.*))?$/.exec(note)?.[1] ?? "";
+        hyroxReplacement = {
+          type: todaysHyroxLog.type,
+          duration_min: todaysHyroxLog.duration_min,
+          notes: userNote.trim(),
+        };
+      } else if (note.includes("[SALTADA]")) {
+        hyroxStatus = "skipped";
+      } else if (note.includes("[REEMPLAZADA]")) {
+        hyroxStatus = "replaced";
+      } else {
+        hyroxStatus = "done";
+      }
     }
   }
   const raceCountdown = daysUntilRace(now);
@@ -170,6 +195,7 @@ export default async function DashboardPage() {
           day={hyrox.session.day}
           session={hyrox.session}
           initialStatus={hyroxStatus}
+          initialReplacement={hyroxReplacement}
           daysUntilRace={raceCountdown}
         />
       )}

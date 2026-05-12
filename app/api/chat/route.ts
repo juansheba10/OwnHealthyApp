@@ -128,10 +128,10 @@ Cuando el usuario pida generar un plan (ej. "haz mi plan de la semana que viene"
 
 SESIONES HYROX:
 Cuando el usuario pida cambiar, sustituir o reemplazar su sesión Hyrox del día (o de otra fecha):
-1. Usa get_hyrox_session para leer la sesión planificada y su estado (si ya fue registrada, saltada o reemplazada).
+1. Usa get_hyrox_session para leer la sesión planificada y su estado: "done" (ya hecha), "skipped" (saltada), "replaced_planned" (ya hay un reemplazo programado pero pendiente de hacer) o "replaced" (reemplazo antiguo ya cerrado).
 2. Si la sesión ya tiene un registro, infórmalo al usuario antes de proponer el cambio.
 3. Propón qué tipo de entrenamiento alternativo tiene sentido según el contexto (fatiga reciente, fase del plan, etc.) y explica el porqué.
-4. Invoca replace_hyrox_session con el tipo, duración e intensidad acordados — la app pedirá confirmación.
+4. Invoca replace_hyrox_session con el tipo, duración e intensidad acordados — la app pedirá confirmación. Importante: este reemplazo queda como sesión PROGRAMADA (no completada). El usuario tendrá que marcarla como hecha en la app cuando la haya entrenado. Aclárale esto al confirmar.
 5. Si la sesión es de descanso ("rest"), indícaselo al usuario y pregunta si de todos modos quiere registrar algo.`;
 
 type ChatState = {

@@ -10,7 +10,14 @@ import {
 } from "@/lib/hyrox/plan";
 import type { WorkoutType } from "@/lib/types";
 
-export type HyroxSessionStatus = "done" | "skipped" | "replaced";
+export type HyroxSessionStatus =
+  | "done"
+  | "skipped"
+  | "replaced" // legacy: [REEMPLAZADA] rows pre-dating the planned-replacement flow
+  | "replaced_planned"; // pending replacement; user still needs to mark done/skipped
+
+const REPLACE_PLAN_MARKER = "[REEMPLAZO_PLAN]";
+const SKIP_MARKER = "[SALTADA]";
 
 interface SessionDefaults {
   workoutType: WorkoutType;
@@ -81,6 +88,8 @@ export async function logHyroxSession(weekNum: number, day: HyroxDayCode) {
     `${hyroxNotePrefix(week.w, day)} — ${stripHtml(session.desc)}`,
   );
 
+  await deleteHyroxRowsForDay(supabase, userId, week, day);
+
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
     date: sessionTimestamp(week.w, day),
@@ -98,8 +107,10 @@ export async function skipHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();
   const { week, session } = lookupSession(weekNum, day);
   const note = clamp500(
-    `${hyroxNotePrefix(week.w, day)} [SALTADA] — ${stripHtml(session.desc)}`,
+    `${hyroxNotePrefix(week.w, day)} ${SKIP_MARKER} — ${stripHtml(session.desc)}`,
   );
+
+  await deleteHyroxRowsForDay(supabase, userId, week, day);
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
@@ -129,8 +140,13 @@ export async function replaceHyroxSession(input: ReplaceHyroxInput) {
   const { week } = lookupSession(input.weekNum, input.day);
   const userNote = (input.notes ?? "").trim();
   const note = clamp500(
-    `${hyroxNotePrefix(week.w, input.day)} [REEMPLAZADA]${userNote ? " — " + userNote : ""}`,
+    `${hyroxNotePrefix(week.w, input.day)} ${REPLACE_PLAN_MARKER}${userNote ? " — " + userNote : ""}`,
   );
+
+  // A replacement is a planned swap — not a completed session. Clear any prior
+  // Hyrox row for this day so replacing twice (or after marking done/skipped)
+  // doesn't leave duplicates.
+  await deleteHyroxRowsForDay(supabase, userId, week, input.day);
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
@@ -143,6 +159,68 @@ export async function replaceHyroxSession(input: ReplaceHyroxInput) {
   });
   if (error) throw new Error(error.message);
   revalidateHyrox();
+}
+
+// Marks a previously-planned replacement as actually completed. Reuses the
+// existing row (with its replacement details) and only drops the
+// [REEMPLAZO_PLAN] marker so it counts as done.
+export async function completeReplacedHyroxSession(
+  weekNum: number,
+  day: HyroxDayCode,
+) {
+  const { supabase, userId } = await getAuthedUserId();
+  const { week } = lookupSession(weekNum, day);
+  const dateIso = getSessionDateIso(week, day);
+  const prefix = hyroxNotePrefix(weekNum, day);
+
+  const { data: rows } = await supabase
+    .from("workout_logs")
+    .select("id, notes")
+    .eq("user_id", userId)
+    .gte("date", `${dateIso}T00:00:00Z`)
+    .lt("date", `${dateIso}T23:59:59Z`);
+
+  const target = (rows ?? []).find(
+    (r) =>
+      (r.notes ?? "").startsWith(prefix) &&
+      (r.notes ?? "").includes(REPLACE_PLAN_MARKER),
+  );
+  if (!target) throw new Error("No hay reemplazo planificado para marcar como hecho");
+
+  const current = target.notes ?? "";
+  // Strip the marker but keep the user's notes intact.
+  const cleaned = clamp500(
+    current.replace(/\s*\[REEMPLAZO_PLAN\]\s*(—\s*)?/, " — ").replace(/\s+—\s+$/, ""),
+  );
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .update({ notes: cleaned })
+    .eq("id", target.id)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  revalidateHyrox();
+}
+
+async function deleteHyroxRowsForDay(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  week: (typeof HYROX_WEEKS)[number],
+  day: HyroxDayCode,
+) {
+  const dateIso = getSessionDateIso(week, day);
+  const prefix = hyroxNotePrefix(week.w, day);
+  const { data: rows } = await supabase
+    .from("workout_logs")
+    .select("id, notes")
+    .eq("user_id", userId)
+    .gte("date", `${dateIso}T00:00:00Z`)
+    .lt("date", `${dateIso}T23:59:59Z`);
+  const ids = (rows ?? [])
+    .filter((r) => (r.notes ?? "").startsWith(prefix))
+    .map((r) => r.id);
+  if (ids.length === 0) return;
+  await supabase.from("workout_logs").delete().in("id", ids).eq("user_id", userId);
 }
 
 // Removes the Hyrox log for the given week/day from its planned date.

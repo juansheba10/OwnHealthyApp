@@ -12,6 +12,14 @@ import {
   type HyroxSession,
 } from "@/lib/hyrox/plan";
 
+const WORKOUT_TYPE_LABELS: Record<string, string> = {
+  crossfit: "CrossFit",
+  hyrox: "Hyrox",
+  football: "Fútbol",
+  running: "Running",
+  other: "Otro",
+};
+
 interface Props {
   weekNum: number;
   phase: HyroxPhaseId;
@@ -20,6 +28,11 @@ interface Props {
   day: HyroxDayCode;
   session: HyroxSession;
   initialStatus: HyroxSessionStatus | null;
+  initialReplacement?: {
+    type: string;
+    duration_min: number;
+    notes: string;
+  } | null;
   daysUntilRace: number;
 }
 
@@ -31,10 +44,15 @@ export function TodayHyroxCard({
   day,
   session,
   initialStatus,
+  initialReplacement,
   daysUntilRace,
 }: Props) {
   const ph = HYROX_PHASES[phase];
   const st = HYROX_SESSION_TYPES[session.type];
+  const isReplacedPlanned = initialStatus === "replaced_planned" && initialReplacement;
+  const replacementTypeLabel = initialReplacement
+    ? WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type
+    : null;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -69,10 +87,26 @@ export function TodayHyroxCard({
           </span>
         </div>
 
-        <p
-          className="mt-2 text-sm font-light text-text/90 [&_strong]:font-medium [&_strong]:text-text"
-          dangerouslySetInnerHTML={{ __html: session.desc }}
-        />
+        {isReplacedPlanned ? (
+          <div className="mt-2 rounded-lg border border-blue/30 bg-blue/5 p-3">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-blue">
+              Reemplazo programado
+            </p>
+            <p className="mt-1 text-sm font-light text-text/90">
+              <span className="font-medium text-text">{replacementTypeLabel}</span>{" "}
+              · {initialReplacement!.duration_min} min
+              {initialReplacement!.notes ? ` — ${initialReplacement!.notes}` : ""}
+            </p>
+            <p className="mt-1.5 text-[11px] text-muted line-through">
+              Original: {st.label}
+            </p>
+          </div>
+        ) : (
+          <p
+            className="mt-2 text-sm font-light text-text/90 [&_strong]:font-medium [&_strong]:text-text"
+            dangerouslySetInnerHTML={{ __html: session.desc }}
+          />
+        )}
         <p className="mt-1 flex items-center gap-1 text-xs text-muted">
           {weekFocus} <ChevronRight size={12} className="opacity-60" />
         </p>

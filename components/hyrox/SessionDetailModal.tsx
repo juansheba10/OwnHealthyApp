@@ -13,6 +13,14 @@ import {
   type HyroxSession,
 } from "@/lib/hyrox/plan";
 
+const WORKOUT_TYPE_LABELS: Record<string, string> = {
+  crossfit: "CrossFit",
+  hyrox: "Hyrox",
+  football: "Fútbol",
+  running: "Running",
+  other: "Otro",
+};
+
 interface Props {
   weekNum: number;
   phase: HyroxPhaseId;
@@ -21,6 +29,11 @@ interface Props {
   session: HyroxSession;
   sessionDateLabel: string;
   initialStatus: HyroxSessionStatus | null;
+  initialReplacement?: {
+    type: string;
+    duration_min: number;
+    notes: string;
+  } | null;
   onClose: () => void;
 }
 
@@ -79,10 +92,16 @@ function ModalContent({
   session,
   sessionDateLabel,
   initialStatus,
+  initialReplacement,
   onClose,
 }: Props) {
   const ph = HYROX_PHASES[phase];
   const st = HYROX_SESSION_TYPES[session.type];
+  const showReplacement =
+    initialStatus === "replaced_planned" && initialReplacement;
+  const replacementTypeLabel = initialReplacement
+    ? WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type
+    : null;
 
   return (
     <div style={BACKDROP_STYLE} onClick={onClose}>
@@ -142,10 +161,38 @@ function ModalContent({
             <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">
               Qué hacer
             </div>
-            <div
-              className="rounded-lg border border-border bg-surface p-4 text-sm font-light leading-relaxed text-text/90 [&_strong]:font-medium [&_strong]:text-text"
-              dangerouslySetInnerHTML={{ __html: session.desc }}
-            />
+            {showReplacement ? (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-blue/30 bg-blue/5 p-4">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-blue">
+                    Reemplazo programado
+                  </p>
+                  <p className="mt-1 text-sm font-light text-text/90">
+                    <span className="font-medium text-text">
+                      {replacementTypeLabel}
+                    </span>{" "}
+                    · {initialReplacement!.duration_min} min
+                    {initialReplacement!.notes
+                      ? ` — ${initialReplacement!.notes}`
+                      : ""}
+                  </p>
+                </div>
+                <details className="rounded-lg border border-border bg-surface p-3 text-xs text-muted">
+                  <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wider">
+                    Ver sesión Hyrox original
+                  </summary>
+                  <div
+                    className="mt-2 text-sm font-light leading-relaxed text-text/80 [&_strong]:font-medium [&_strong]:text-text"
+                    dangerouslySetInnerHTML={{ __html: session.desc }}
+                  />
+                </details>
+              </div>
+            ) : (
+              <div
+                className="rounded-lg border border-border bg-surface p-4 text-sm font-light leading-relaxed text-text/90 [&_strong]:font-medium [&_strong]:text-text"
+                dangerouslySetInnerHTML={{ __html: session.desc }}
+              />
+            )}
           </div>
 
           {/* Controls */}

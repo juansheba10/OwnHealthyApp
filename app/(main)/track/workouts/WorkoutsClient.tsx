@@ -37,7 +37,8 @@ function toLocalInputValue(d: Date): string {
 }
 
 function isHyroxMarker(notes: string | null): boolean {
-  return !!notes?.includes("[SALTADA]");
+  if (!notes) return false;
+  return notes.includes("[SALTADA]") || notes.includes("[REEMPLAZO_PLAN]");
 }
 
 export function WorkoutsClient() {

@@ -7,6 +7,7 @@ import {
   skipHyroxSession,
   replaceHyroxSession,
   undoHyroxSession,
+  completeReplacedHyroxSession,
   type HyroxSessionStatus,
 } from "@/app/(main)/hyrox/actions";
 import type { HyroxDayCode, HyroxSessionType } from "@/lib/hyrox/plan";
@@ -63,6 +64,13 @@ export function HyroxSessionControls({
     });
   }
 
+  function handleCompletePlannedReplacement() {
+    withTransition(async () => {
+      await completeReplacedHyroxSession(weekNum, day);
+      setStatusAndNotify("done");
+    });
+  }
+
   function handleSkip() {
     withTransition(async () => {
       await skipHyroxSession(weekNum, day);
@@ -87,7 +95,7 @@ export function HyroxSessionControls({
   }) {
     withTransition(async () => {
       await replaceHyroxSession({ weekNum, day, ...input });
-      setStatusAndNotify("replaced");
+      setStatusAndNotify("replaced_planned");
       setShowReplaceForm(false);
     });
   }
@@ -97,6 +105,10 @@ export function HyroxSessionControls({
       <p className="text-[11px] text-muted">Día de descanso · sin registro</p>
     );
   }
+
+  const showActionButtons = status === null || status === "replaced_planned";
+  const doneHandler =
+    status === "replaced_planned" ? handleCompletePlannedReplacement : handleDone;
 
   return (
     <div className="space-y-2">
@@ -128,11 +140,11 @@ export function HyroxSessionControls({
         />
       )}
 
-      {status === null && !showReplaceForm && (
+      {showActionButtons && !showReplaceForm && (
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={handleDone}
+            onClick={doneHandler}
             disabled={pending}
             className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-bg disabled:opacity-50"
           >
@@ -152,12 +164,23 @@ export function HyroxSessionControls({
             disabled={pending}
             className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:text-blue disabled:opacity-50"
           >
-            <Repeat size={12} /> Reemplazar
+            <Repeat size={12} />{" "}
+            {status === "replaced_planned" ? "Cambiar reemplazo" : "Reemplazar"}
           </button>
+          {status === "replaced_planned" && (
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={pending}
+              className="flex items-center gap-1 text-xs text-muted hover:text-text disabled:opacity-50"
+            >
+              <Undo2 size={12} /> Deshacer reemplazo
+            </button>
+          )}
         </div>
       )}
 
-      {status === null && showReplaceForm && (
+      {showActionButtons && showReplaceForm && (
         <ReplaceForm
           pending={pending}
           onCancel={() => setShowReplaceForm(false)}

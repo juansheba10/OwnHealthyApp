@@ -9,13 +9,18 @@ import {
   daysUntilRace,
 } from "@/lib/hyrox/plan";
 import type { HyroxSessionStatus } from "./actions";
-import { HyroxPlanView, type SessionStatusMap } from "./HyroxPlanView";
+import {
+  HyroxPlanView,
+  type SessionStatusMap,
+  type SessionReplacementMap,
+} from "./HyroxPlanView";
 
 export const metadata = {
   title: "Plan Hyrox · NutriTrack",
 };
 
-const HYROX_NOTE_RE = /^Hyrox S(\d+) · ([^\s\[]+)(\s\[(SALTADA|REEMPLAZADA)\])?/;
+const HYROX_NOTE_RE =
+  /^Hyrox S(\d+) · ([^\s\[]+)(\s\[(SALTADA|REEMPLAZADA|REEMPLAZO_PLAN)\])?/;
 
 function parseHyroxNote(
   notes: string | null,
@@ -25,7 +30,13 @@ function parseHyroxNote(
   if (!m) return null;
   const tag = m[4];
   const status: HyroxSessionStatus =
-    tag === "SALTADA" ? "skipped" : tag === "REEMPLAZADA" ? "replaced" : "done";
+    tag === "SALTADA"
+      ? "skipped"
+      : tag === "REEMPLAZADA"
+        ? "replaced"
+        : tag === "REEMPLAZO_PLAN"
+          ? "replaced_planned"
+          : "done";
   return { weekNum: Number(m[1]), day: m[2], status };
 }
 
@@ -42,17 +53,28 @@ export default async function HyroxPage() {
 
   const { data: logs } = await supabase
     .from("workout_logs")
-    .select("notes, date")
+    .select("notes, date, type, duration_min")
     .eq("user_id", user.id)
     .gte("date", `${HYROX_PLAN_START}T00:00:00Z`)
     .lte("date", `${HYROX_RACE_DATE}T23:59:59Z`)
     .like("notes", "Hyrox %");
 
   const statusMap: SessionStatusMap = {};
+  const replacementMap: SessionReplacementMap = {};
   for (const row of logs ?? []) {
     const parsed = parseHyroxNote(row.notes);
     if (!parsed) continue;
-    statusMap[`${parsed.weekNum}-${parsed.day}`] = parsed.status;
+    const key = `${parsed.weekNum}-${parsed.day}`;
+    statusMap[key] = parsed.status;
+    if (parsed.status === "replaced_planned") {
+      const userNote =
+        /\[REEMPLAZO_PLAN\](?:\s+—\s+(.*))?$/.exec(row.notes ?? "")?.[1] ?? "";
+      replacementMap[key] = {
+        type: row.type,
+        duration_min: row.duration_min,
+        notes: userNote.trim(),
+      };
+    }
   }
 
   return (
@@ -62,6 +84,7 @@ export default async function HyroxPage() {
       raceVenue={HYROX_RACE_VENUE}
       daysUntilRace={days}
       statusMap={statusMap}
+      replacementMap={replacementMap}
     />
   );
 }

@@ -67,8 +67,8 @@ export function summarizeToolCall(
     }
     case "replace_hyrox_session":
       return {
-        title: "Cambiar sesión Hyrox",
-        summary: `${input.date} → ${input.type} ${input.duration_min} min · intensidad ${input.intensity}/10${input.notes ? ` · "${input.notes}"` : ""}`,
+        title: "Planificar reemplazo Hyrox",
+        summary: `${input.date} → ${input.type} ${input.duration_min} min · intensidad ${input.intensity}/10${input.notes ? ` · "${input.notes}"` : ""} (queda programado hasta marcarlo hecho)`,
       };
     default:
       return {
@@ -248,7 +248,7 @@ export const toolDefinitions: Tool[] = [
   {
     name: "replace_hyrox_session",
     description:
-      "Registra una sesión alternativa en lugar de la sesión Hyrox planificada para esa fecha. Úsalo cuando el usuario quiera cambiar o sustituir su entrenamiento Hyrox del día. Requiere confirmación.",
+      "Sustituye la sesión Hyrox planificada por otra actividad alternativa para esa fecha. La nueva sesión queda como PROGRAMADA (no completada): el usuario seguirá viendo el botón 'Marcar hecho' para registrarla cuando la termine. Úsalo cuando el usuario quiera cambiar o sustituir su entrenamiento Hyrox del día. Requiere confirmación.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -736,6 +736,7 @@ async function getHyroxSession(userId: string, date: string): Promise<string> {
   if (existingLog) {
     const n = existingLog.notes ?? "";
     if (n.includes("[SALTADA]")) status = "skipped";
+    else if (n.includes("[REEMPLAZO_PLAN]")) status = "replaced_planned";
     else if (n.includes("[REEMPLAZADA]")) status = "replaced";
     else status = "done";
   }
@@ -774,8 +775,25 @@ async function replaceHyroxSessionAI(
   const { week, session } = sessionInfo;
   const prefix = `Hyrox S${week.w} · ${session.day}`;
   const userNote = (notes ?? "").trim();
-  const fullNote = `${prefix} [REEMPLAZADA]${userNote ? " — " + userNote : ""}`;
+  // Planned replacement, not a completed log: stays "programmed" until the user
+  // marks it done in the UI.
+  const fullNote = `${prefix} [REEMPLAZO_PLAN]${userNote ? " — " + userNote : ""}`;
   const clampedNote = fullNote.length > 500 ? fullNote.slice(0, 497) + "..." : fullNote;
+
+  // Clear any prior Hyrox row for this day so re-replacing or replacing after
+  // a previous mark is idempotent.
+  const { data: existing } = await supabase
+    .from("workout_logs")
+    .select("id, notes")
+    .eq("user_id", userId)
+    .gte("date", `${date}T00:00:00Z`)
+    .lt("date", `${date}T23:59:59Z`);
+  const stale = (existing ?? [])
+    .filter((r) => (r.notes ?? "").startsWith(prefix))
+    .map((r) => r.id);
+  if (stale.length > 0) {
+    await supabase.from("workout_logs").delete().in("id", stale).eq("user_id", userId);
+  }
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
@@ -797,7 +815,7 @@ async function replaceHyroxSessionAI(
 
   return JSON.stringify({
     success: true,
-    message: `Sesión Hyrox del ${date} (S${week.w} · ${session.day}) reemplazada por ${type} ${durationMin} min`,
+    message: `Reemplazo planificado para ${date} (S${week.w} · ${session.day}): ${type} ${durationMin} min. Queda como sesión programada hasta que se marque como hecha.`,
   });
 }
 

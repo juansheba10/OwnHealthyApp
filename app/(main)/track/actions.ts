@@ -30,9 +30,11 @@ export async function getTrackingSummary() {
   ]);
 
   const weights = weightResult.data ?? [];
+  // Skipped sessions and planned (not-yet-done) replacements are not real
+  // completed workouts — exclude them from totals/averages.
   const workouts = (workoutResult.data ?? []).filter((w) => {
     const notes: string = w.notes ?? "";
-    return !notes.includes("[SALTADA]");
+    return !notes.includes("[SALTADA]") && !notes.includes("[REEMPLAZO_PLAN]");
   });
 
   const lastWeight = weights[0] ? Number(weights[0].weight_kg) : null;

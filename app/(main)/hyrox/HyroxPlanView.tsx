@@ -15,6 +15,10 @@ import type { HyroxSessionStatus } from "./actions";
 import { SessionDetailModal } from "@/components/hyrox/SessionDetailModal";
 
 export type SessionStatusMap = Record<string, HyroxSessionStatus>;
+export type SessionReplacementMap = Record<
+  string,
+  { type: string; duration_min: number; notes: string }
+>;
 
 type FilterValue = "all" | HyroxPhaseId;
 
@@ -40,6 +44,7 @@ interface Props {
   raceVenue: string;
   daysUntilRace: number;
   statusMap: SessionStatusMap;
+  replacementMap?: SessionReplacementMap;
 }
 
 interface OpenSessionCoord {
@@ -57,6 +62,7 @@ export function HyroxPlanView({
   raceVenue,
   daysUntilRace,
   statusMap,
+  replacementMap,
 }: Props) {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [expanded, setExpanded] = useState<Set<number>>(
@@ -344,6 +350,11 @@ export function HyroxPlanView({
               statusKey(openSession.week.w, openSession.session.day)
             ] ?? null
           }
+          initialReplacement={
+            replacementMap?.[
+              statusKey(openSession.week.w, openSession.session.day)
+            ] ?? null
+          }
           onClose={() => setOpenSession(null)}
         />
       )}
@@ -364,6 +375,14 @@ function SessionStatusBadge({ status }: { status: HyroxSessionStatus | null }) {
     return (
       <span className="flex items-center gap-1 rounded bg-pink/15 px-1.5 py-0.5 font-mono text-[10px] text-pink">
         <X size={10} />
+      </span>
+    );
+  }
+  if (status === "replaced_planned") {
+    // Pending replacement: outlined chip to signal "programmed, not done yet".
+    return (
+      <span className="flex items-center gap-1 rounded border border-blue/40 px-1.5 py-0.5 font-mono text-[10px] text-blue">
+        <Repeat size={10} />
       </span>
     );
   }

@@ -29,12 +29,12 @@ export async function getWorkoutLogs(limit: number = 50) {
     .order("date", { ascending: false })
     .limit(limit);
 
-  // Exclude Hyrox status-only markers — [SALTADA] and [REEMPLAZADA] entries exist
-  // solely so the Hyrox plan page can derive session status; they are not real
-  // workout log entries and should not appear in the registro.
+  // Exclude Hyrox status-only markers — [SALTADA] and [REEMPLAZO_PLAN] entries
+  // exist solely so the Hyrox plan page can derive session status; they are not
+  // real completed workout log entries and should not appear in the registro.
   return (data ?? []).filter((row) => {
     const notes: string = row.notes ?? "";
-    return !notes.includes("[SALTADA]");
+    return !notes.includes("[SALTADA]") && !notes.includes("[REEMPLAZO_PLAN]");
   });
 }
 
