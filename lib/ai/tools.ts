@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
+import { getSessionForDate } from "@/lib/hyrox/plan";
 
 // Use service role client for AI tools (bypasses RLS)
 function getAdminClient() {
@@ -15,6 +16,7 @@ export const WRITE_TOOLS = new Set([
   "update_calorie_target",
   "add_recipe",
   "generate_weekly_plan",
+  "replace_hyrox_session",
 ]);
 
 export function summarizeToolCall(
@@ -63,6 +65,11 @@ export function summarizeToolCall(
         summary: `${days.length} días${range}${avgStr}`,
       };
     }
+    case "replace_hyrox_session":
+      return {
+        title: "Cambiar sesión Hyrox",
+        summary: `${input.date} → ${input.type} ${input.duration_min} min · intensidad ${input.intensity}/10${input.notes ? ` · "${input.notes}"` : ""}`,
+      };
     default:
       return {
         title: name,
@@ -226,6 +233,41 @@ export const toolDefinitions: Tool[] = [
     },
   },
   {
+    name: "get_hyrox_session",
+    description:
+      "Lee la sesión Hyrox planificada para una fecha y su estado actual (registrada, saltada, reemplazada o pendiente). Úsalo antes de proponer cambiar o reemplazar una sesión.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        user_id: { type: "string", description: "ID del usuario" },
+        date: { type: "string", description: "Fecha de la sesión (YYYY-MM-DD)" },
+      },
+      required: ["user_id", "date"],
+    },
+  },
+  {
+    name: "replace_hyrox_session",
+    description:
+      "Registra una sesión alternativa en lugar de la sesión Hyrox planificada para esa fecha. Úsalo cuando el usuario quiera cambiar o sustituir su entrenamiento Hyrox del día. Requiere confirmación.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        user_id: { type: "string", description: "ID del usuario" },
+        date: { type: "string", description: "Fecha de la sesión a reemplazar (YYYY-MM-DD)" },
+        type: {
+          type: "string",
+          enum: ["crossfit", "hyrox", "football", "running", "other"],
+          description: "Tipo del entrenamiento alternativo",
+        },
+        duration_min: { type: "number", description: "Duración en minutos" },
+        intensity: { type: "number", description: "Intensidad del 1 al 10" },
+        fatigue: { type: "number", description: "Fatiga estimada del 1 al 10" },
+        notes: { type: "string", description: "Descripción del entrenamiento alternativo" },
+      },
+      required: ["user_id", "date", "type", "duration_min", "intensity", "fatigue"],
+    },
+  },
+  {
     name: "generate_weekly_plan",
     description:
       "Genera (o reemplaza) el plan semanal de comidas del usuario. Sustituye los planes existentes en cada fecha incluida (upsert por user_id+date). Requiere confirmación. ANTES de invocar esta tool: (1) lee el training schedule del rango, (2) lee weight_logs y workout_logs recientes para detectar tendencias, (3) lista recetas disponibles, (4) en tu mensaje al usuario antes de invocar, expón día a día qué propones y por qué.",
@@ -338,6 +380,18 @@ export async function executeTool(
           total_protein: number;
           notes?: string;
         }>
+      );
+    case "get_hyrox_session":
+      return await getHyroxSession(userId, input.date as string);
+    case "replace_hyrox_session":
+      return await replaceHyroxSessionAI(
+        userId,
+        input.date as string,
+        input.type as string,
+        input.duration_min as number,
+        input.intensity as number,
+        input.fatigue as number,
+        input.notes as string | undefined
       );
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -651,6 +705,100 @@ async function listRecipes(
   }
 
   return JSON.stringify({ count: recipes.length, recipes });
+}
+
+async function getHyroxSession(userId: string, date: string): Promise<string> {
+  const supabase = getAdminClient();
+  const dateObj = new Date(date + "T00:00:00");
+  const sessionInfo = getSessionForDate(dateObj);
+
+  if (!sessionInfo) {
+    return JSON.stringify({
+      date,
+      no_hyrox_session: true,
+      reason: "No hay sesión Hyrox planificada para esta fecha (fuera del rango del plan o domingo)",
+    });
+  }
+
+  const { week, session } = sessionInfo;
+  const prefix = `Hyrox S${week.w} · ${session.day}`;
+
+  const { data: logs } = await supabase
+    .from("workout_logs")
+    .select("id, type, notes, duration_min, intensity, fatigue")
+    .eq("user_id", userId)
+    .gte("date", `${date}T00:00:00Z`)
+    .lt("date", `${date}T23:59:59Z`);
+
+  const existingLog = (logs ?? []).find((r) => (r.notes ?? "").startsWith(prefix));
+
+  let status: string | null = null;
+  if (existingLog) {
+    const n = existingLog.notes ?? "";
+    if (n.includes("[SALTADA]")) status = "skipped";
+    else if (n.includes("[REEMPLAZADA]")) status = "replaced";
+    else status = "done";
+  }
+
+  return JSON.stringify({
+    date,
+    week: week.w,
+    phase: week.phase,
+    week_focus: week.focus,
+    day: session.day,
+    session_type: session.type,
+    description: session.desc.replace(/<[^>]*>/g, ""),
+    logged: !!existingLog,
+    status,
+    existing_log: existingLog ?? null,
+  });
+}
+
+async function replaceHyroxSessionAI(
+  userId: string,
+  date: string,
+  type: string,
+  durationMin: number,
+  intensity: number,
+  fatigue: number,
+  notes?: string
+): Promise<string> {
+  const supabase = getAdminClient();
+  const dateObj = new Date(date + "T00:00:00");
+  const sessionInfo = getSessionForDate(dateObj);
+
+  if (!sessionInfo) {
+    return JSON.stringify({ error: "No hay sesión Hyrox planificada para esta fecha" });
+  }
+
+  const { week, session } = sessionInfo;
+  const prefix = `Hyrox S${week.w} · ${session.day}`;
+  const userNote = (notes ?? "").trim();
+  const fullNote = `${prefix} [REEMPLAZADA]${userNote ? " — " + userNote : ""}`;
+  const clampedNote = fullNote.length > 500 ? fullNote.slice(0, 497) + "..." : fullNote;
+
+  const { error } = await supabase.from("workout_logs").insert({
+    user_id: userId,
+    date: `${date}T12:00:00Z`,
+    type,
+    duration_min: durationMin,
+    intensity,
+    fatigue,
+    notes: clampedNote,
+  });
+
+  if (error) return JSON.stringify({ error: error.message });
+
+  await supabase.from("change_log").insert({
+    user_id: userId,
+    action: "replace_hyrox_session",
+    details: { date, week: week.w, day: session.day, type, duration_min: durationMin, notes },
+  });
+
+  return JSON.stringify({
+    success: true,
+    message: `Sesión Hyrox del ${date} (S${week.w} · ${session.day}) reemplazada por ${type} ${durationMin} min`,
+  });
 }
 
 async function generateWeeklyPlan(

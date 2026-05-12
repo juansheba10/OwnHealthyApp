@@ -8,6 +8,7 @@ import {
   summarizeToolCall,
 } from "@/lib/ai/tools";
 import { signState, verifyState } from "@/lib/ai/state-token";
+import { getSessionForDate } from "@/lib/hyrox/plan";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-sonnet-4-6";
@@ -75,6 +76,12 @@ async function getUserContext(userId: string): Promise<string> {
         .limit(7),
     ]);
 
+  const todayDate = new Date();
+  const todayHyrox = getSessionForDate(todayDate);
+  const todayHyroxStr = todayHyrox
+    ? `Semana ${todayHyrox.week.w} · ${todayHyrox.session.day} · ${todayHyrox.session.type} — ${todayHyrox.session.desc.replace(/<[^>]*>/g, "")}`
+    : "sin sesión Hyrox hoy";
+
   return `
 CONTEXTO DEL USUARIO:
 - Perfil: ${JSON.stringify(profile.data)}
@@ -83,6 +90,7 @@ CONTEXTO DEL USUARIO:
 - Plan de hoy (${today}): ${JSON.stringify(todayPlan.data)}
 - Ayuno activo: ${JSON.stringify(activeFast.data)}
 - Ayunos recientes (7 días): ${JSON.stringify(recentFasts.data)}
+- Sesión Hyrox de hoy: ${todayHyroxStr}
 - Fecha actual: ${today}
 - ID del usuario: ${userId}
 `.trim();
@@ -116,7 +124,15 @@ Cuando el usuario pida generar un plan (ej. "haz mi plan de la semana que viene"
    - Razona el ajuste explícitamente al usuario.
 6. Respeta restricciones (sin pescado, etc.) en cada comida.
 7. Para el horario de comidas usa el fasting_protocol del usuario (16:8 → primera comida sobre las 13:00, última sobre las 21:00).
-8. Antes de invocar generate_weekly_plan, expón en el chat un resumen día a día (fecha, day_type, kcal totales y comidas clave) y razona el ajuste calórico. Solo entonces invoca la tool — la app gestiona la confirmación.`;
+8. Antes de invocar generate_weekly_plan, expón en el chat un resumen día a día (fecha, day_type, kcal totales y comidas clave) y razona el ajuste calórico. Solo entonces invoca la tool — la app gestiona la confirmación.
+
+SESIONES HYROX:
+Cuando el usuario pida cambiar, sustituir o reemplazar su sesión Hyrox del día (o de otra fecha):
+1. Usa get_hyrox_session para leer la sesión planificada y su estado (si ya fue registrada, saltada o reemplazada).
+2. Si la sesión ya tiene un registro, infórmalo al usuario antes de proponer el cambio.
+3. Propón qué tipo de entrenamiento alternativo tiene sentido según el contexto (fatiga reciente, fase del plan, etc.) y explica el porqué.
+4. Invoca replace_hyrox_session con el tipo, duración e intensidad acordados — la app pedirá confirmación.
+5. Si la sesión es de descanso ("rest"), indícaselo al usuario y pregunta si de todos modos quiere registrar algo.`;
 
 type ChatState = {
   messages: Anthropic.MessageParam[];
