@@ -23,14 +23,17 @@ export async function getTrackingSummary() {
       .order("date", { ascending: false }),
     supabase
       .from("workout_logs")
-      .select("date, type, duration_min, fatigue")
+      .select("date, type, duration_min, fatigue, notes")
       .eq("user_id", user.id)
       .gte("date", new Date(weekAgo).toISOString())
       .order("date", { ascending: false }),
   ]);
 
   const weights = weightResult.data ?? [];
-  const workouts = workoutResult.data ?? [];
+  const workouts = (workoutResult.data ?? []).filter((w) => {
+    const notes: string = w.notes ?? "";
+    return !notes.includes("[SALTADA]");
+  });
 
   const lastWeight = weights[0] ? Number(weights[0].weight_kg) : null;
   const weightTrend =

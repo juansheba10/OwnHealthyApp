@@ -4,6 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { WorkoutType } from "@/lib/types";
 
+export interface WorkoutLog {
+  id: string;
+  date: string;
+  type: WorkoutType;
+  duration_min: number;
+  intensity: number;
+  fatigue: number;
+  notes: string | null;
+}
+
 export async function getWorkoutLogs(limit: number = 50) {
   const supabase = await createClient();
   const {
@@ -19,7 +29,13 @@ export async function getWorkoutLogs(limit: number = 50) {
     .order("date", { ascending: false })
     .limit(limit);
 
-  return data ?? [];
+  // Exclude Hyrox status-only markers — [SALTADA] and [REEMPLAZADA] entries exist
+  // solely so the Hyrox plan page can derive session status; they are not real
+  // workout log entries and should not appear in the registro.
+  return (data ?? []).filter((row) => {
+    const notes: string = row.notes ?? "";
+    return !notes.includes("[SALTADA]");
+  });
 }
 
 export interface WorkoutInput {

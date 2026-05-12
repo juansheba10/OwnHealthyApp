@@ -81,6 +81,11 @@ export default async function DashboardPage() {
     duration_min: number;
     notes: string | null;
   }[];
+  // For stats display — excludes Hyrox status-only markers
+  const realWorkouts = workouts.filter((w) => {
+    const notes = w.notes ?? "";
+    return !notes.includes("[SALTADA]") && !notes.includes("[REEMPLAZADA]");
+  });
   const activeFast = (activeFastResult.data as FastingSession | null) ?? null;
   const fastingProtocol = (profile?.fasting_protocol as string | null) ?? null;
   const todayLogs = (todayLogsResult.data ?? []) as {
@@ -217,14 +222,14 @@ export default async function DashboardPage() {
             <Dumbbell size={14} className="text-accent" />
             <h3 className="text-xs text-muted">Entrenos 7d</h3>
           </div>
-          {workouts.length > 0 ? (
+          {realWorkouts.length > 0 ? (
             <div>
               <span className="font-mono text-xl text-text">
-                {workouts.length}
+                {realWorkouts.length}
               </span>
               <span className="text-xs text-muted"> sesiones</span>
               <p className="text-xs text-muted mt-1">
-                {workouts.reduce((s, w) => s + w.duration_min, 0)} min total
+                {realWorkouts.reduce((s, w) => s + w.duration_min, 0)} min total
               </p>
             </div>
           ) : (
