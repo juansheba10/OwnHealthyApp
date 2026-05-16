@@ -27,7 +27,8 @@ Daily or one-off entries. Chart view (Recharts) with comparison against the user
 ### Workout tracking
 
 Two separate tables:
-- `workout_plans` — planned / upcoming sessions (what the user *is going to* do).
+
+- `workout_plans` — planned / upcoming sessions (what the user _is going to_ do).
 - `workout_logs` — completed sessions, with type (`crossfit | hyrox | football | running | other`), intensity, and perceived effort.
 
 Weekly summary by workout type and volume.
@@ -37,12 +38,14 @@ Weekly summary by workout type and volume.
 The assistant (Claude Sonnet 4.6, `app/api/chat/route.ts`) gets user context injected on the first turn (profile, recent weight, workouts, today's plan) and has access to typed tools:
 
 **Read — executed without asking:**
+
 - `get_user_stats` — recent weight, workouts, adherence, fatigue.
 - `analyze_progress` — diagnostic against goals.
 - `get_training_schedule` — planned workout calendar (called before generating a plan).
 - `list_recipes` — search the shared catalog.
 
 **Write — pause the loop and ask the user for confirmation:**
+
 - `update_meal` — replace a specific meal on a given day.
 - `update_calorie_target` — adjust kcal target for a `day_type`.
 - `add_recipe` — add a recipe to the catalog.
@@ -109,13 +112,13 @@ npm run dev   # http://localhost:3000
 
 ## Environment variables
 
-| Variable | Description | Exposure |
-|----------|-------------|----------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Public |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon / publishable key (RLS applies) | Public |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role / secret key (bypasses RLS) | **Server only** |
-| `ANTHROPIC_API_KEY` | Anthropic API key | **Server only** |
-| `CHAT_STATE_SECRET` | HMAC secret for chat state tokens (32+ random bytes; `openssl rand -hex 32`) | **Server only** |
+| Variable                        | Description                                                                  | Exposure        |
+| ------------------------------- | ---------------------------------------------------------------------------- | --------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL                                                         | Public          |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon / publishable key (RLS applies)                                         | Public          |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Service role / secret key (bypasses RLS)                                     | **Server only** |
+| `ANTHROPIC_API_KEY`             | Anthropic API key                                                            | **Server only** |
+| `CHAT_STATE_SECRET`             | HMAC secret for chat state tokens (32+ random bytes; `openssl rand -hex 32`) | **Server only** |
 
 ## Commands
 

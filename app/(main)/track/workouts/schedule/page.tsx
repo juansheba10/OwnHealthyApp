@@ -54,7 +54,7 @@ export default function SchedulePage() {
   }
 
   const days = Array.from({ length: HORIZON_DAYS }, (_, i) =>
-    addDays(today, i)
+    addDays(today, i),
   );
 
   return (
@@ -114,7 +114,9 @@ export default function SchedulePage() {
                           className="flex items-center justify-between text-xs bg-surface rounded-md px-2 py-1.5"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <span className={`font-medium shrink-0 ${ti.color}`}>
+                            <span
+                              className={`font-medium shrink-0 ${ti.color}`}
+                            >
                               {ti.label}
                             </span>
                             {s.intended_intensity != null && (

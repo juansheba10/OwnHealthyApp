@@ -100,7 +100,7 @@ function ModalContent({
   const showReplacement =
     initialStatus === "replaced_planned" && initialReplacement;
   const replacementTypeLabel = initialReplacement
-    ? WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type
+    ? (WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type)
     : null;
 
   return (

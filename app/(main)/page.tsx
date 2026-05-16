@@ -6,11 +6,7 @@ import type { MealItem, CalorieTargets } from "@/lib/types";
 import { FastingTimer } from "@/components/fasting/FastingTimer";
 import { TodayMealsCard } from "@/components/plan/TodayMealsCard";
 import { TodayHyroxCard } from "@/components/hyrox/TodayHyroxCard";
-import {
-  getSessionForDate,
-  daysUntilRace,
-  isoDate,
-} from "@/lib/hyrox/plan";
+import { getSessionForDate, daysUntilRace, isoDate } from "@/lib/hyrox/plan";
 import type { FastingSession } from "@/app/(main)/fasting/lib";
 
 export default async function DashboardPage() {
@@ -121,20 +117,17 @@ export default async function DashboardPage() {
 
   // Calorie target for today
   const calorieTargets = profile?.calorie_targets as CalorieTargets | undefined;
-  const targetKcal = calorieTargets && todayPlan
-    ? calorieTargets[todayPlan.day_type as keyof CalorieTargets]
-    : undefined;
+  const targetKcal =
+    calorieTargets && todayPlan
+      ? calorieTargets[todayPlan.day_type as keyof CalorieTargets]
+      : undefined;
 
   // Today's Hyrox session
   const now = new Date();
   const hyrox = getSessionForDate(now);
   const todayIso = isoDate(now);
-  let hyroxStatus:
-    | "done"
-    | "skipped"
-    | "replaced"
-    | "replaced_planned"
-    | null = null;
+  let hyroxStatus: "done" | "skipped" | "replaced" | "replaced_planned" | null =
+    null;
   let hyroxReplacement: {
     type: string;
     duration_min: number;
@@ -143,13 +136,15 @@ export default async function DashboardPage() {
   if (hyrox) {
     const prefix = `Hyrox S${hyrox.week.w} · ${hyrox.session.day}`;
     const todaysHyroxLog = workouts.find(
-      (w) => w.date.slice(0, 10) === todayIso && (w.notes ?? "").startsWith(prefix),
+      (w) =>
+        w.date.slice(0, 10) === todayIso && (w.notes ?? "").startsWith(prefix),
     );
     if (todaysHyroxLog) {
       const note = todaysHyroxLog.notes ?? "";
       if (note.includes("[REEMPLAZO_PLAN]")) {
         hyroxStatus = "replaced_planned";
-        const userNote = /\[REEMPLAZO_PLAN\](?:\s+—\s+(.*))?$/.exec(note)?.[1] ?? "";
+        const userNote =
+          /\[REEMPLAZO_PLAN\](?:\s+—\s+(.*))?$/.exec(note)?.[1] ?? "";
         hyroxReplacement = {
           type: todaysHyroxLog.type,
           duration_min: todaysHyroxLog.duration_min,
@@ -202,10 +197,7 @@ export default async function DashboardPage() {
 
       {/* Fasting timer */}
       {(fastingProtocol || activeFast) && (
-        <FastingTimer
-          initialSession={activeFast}
-          protocol={fastingProtocol}
-        />
+        <FastingTimer initialSession={activeFast} protocol={fastingProtocol} />
       )}
 
       {/* Stats row */}

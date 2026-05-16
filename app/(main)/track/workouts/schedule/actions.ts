@@ -50,10 +50,7 @@ export async function addPlannedSession(input: PlannedSessionInput) {
 
 export async function deletePlannedSession(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("workout_plans")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("workout_plans").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/track/workouts/schedule");
 }

@@ -57,12 +57,15 @@ export function WorkoutsClient() {
       .limit(50);
 
     setLogs(
-      (data ?? []).filter((row) => !isHyroxMarker(row.notes)) as WorkoutLog[]
+      (data ?? []).filter((row) => !isHyroxMarker(row.notes)) as WorkoutLog[],
     );
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    // Effect syncs with Supabase realtime: initial fetch primes the list,
+    // then the subscription drives subsequent updates via the same callback.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchLogs();
 
     const supabase = createClient();
@@ -71,7 +74,7 @@ export function WorkoutsClient() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "workout_logs" },
-        fetchLogs
+        fetchLogs,
       )
       .subscribe();
 
@@ -110,16 +113,23 @@ export function WorkoutsClient() {
   const totalDuration = thisWeek.reduce((s, l) => s + l.duration_min, 0);
   const avgFatigue =
     thisWeek.length > 0
-      ? (thisWeek.reduce((s, l) => s + l.fatigue, 0) / thisWeek.length).toFixed(1)
+      ? (thisWeek.reduce((s, l) => s + l.fatigue, 0) / thisWeek.length).toFixed(
+          1,
+        )
       : "--";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push("/track")} className="p-2 rounded-lg hover:bg-card">
+        <button
+          onClick={() => router.push("/track")}
+          className="p-2 rounded-lg hover:bg-card"
+        >
           <ArrowLeft size={20} className="text-muted" />
         </button>
-        <h1 className="font-display text-4xl uppercase tracking-wide">Entrenos</h1>
+        <h1 className="font-display text-4xl uppercase tracking-wide">
+          Entrenos
+        </h1>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -160,7 +170,9 @@ export function WorkoutsClient() {
       )}
 
       <div className="space-y-2">
-        <h3 className="text-xs text-muted uppercase tracking-wider">Historial</h3>
+        <h3 className="text-xs text-muted uppercase tracking-wider">
+          Historial
+        </h3>
         {loading ? (
           <div className="text-center text-muted py-8">Cargando...</div>
         ) : (
@@ -184,16 +196,23 @@ export function WorkoutsClient() {
                   />
                 );
               }
-              const typeInfo = WORKOUT_TYPES.find((t) => t.value === log.type) ?? WORKOUT_TYPES[4];
+              const typeInfo =
+                WORKOUT_TYPES.find((t) => t.value === log.type) ??
+                WORKOUT_TYPES[4];
               return (
-                <div key={log.id} className="rounded-xl border border-border bg-card p-3">
+                <div
+                  key={log.id}
+                  className="rounded-xl border border-border bg-card p-3"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-medium ${typeInfo.color}`}>
                         {typeInfo.label}
                       </span>
                       <span className="text-xs text-muted">
-                        {format(new Date(log.date), "d MMM · HH:mm", { locale: es })}
+                        {format(new Date(log.date), "d MMM · HH:mm", {
+                          locale: es,
+                        })}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -229,7 +248,9 @@ export function WorkoutsClient() {
               );
             })}
             {logs.length === 0 && (
-              <p className="text-center text-muted text-sm py-4">Sin entrenos registrados</p>
+              <p className="text-center text-muted text-sm py-4">
+                Sin entrenos registrados
+              </p>
             )}
           </>
         )}
@@ -256,12 +277,12 @@ function WorkoutForm({
       intensity: 7,
       fatigue: 6,
       notes: "",
-    }
+    },
   );
   const [dateTime, setDateTime] = useState<string>(
     initial?.date
       ? toLocalInputValue(new Date(initial.date))
-      : toLocalInputValue(new Date())
+      : toLocalInputValue(new Date()),
   );
 
   function handleSubmit(e: React.FormEvent) {
@@ -316,7 +337,9 @@ function WorkoutForm({
           max={180}
           step={5}
           value={form.duration_min}
-          onChange={(e) => setForm({ ...form, duration_min: Number(e.target.value) })}
+          onChange={(e) =>
+            setForm({ ...form, duration_min: Number(e.target.value) })
+          }
           className="w-full accent-accent"
         />
       </div>
@@ -330,7 +353,9 @@ function WorkoutForm({
           min={1}
           max={10}
           value={form.intensity}
-          onChange={(e) => setForm({ ...form, intensity: Number(e.target.value) })}
+          onChange={(e) =>
+            setForm({ ...form, intensity: Number(e.target.value) })
+          }
           className="w-full accent-accent"
         />
       </div>
@@ -344,7 +369,9 @@ function WorkoutForm({
           min={1}
           max={10}
           value={form.fatigue}
-          onChange={(e) => setForm({ ...form, fatigue: Number(e.target.value) })}
+          onChange={(e) =>
+            setForm({ ...form, fatigue: Number(e.target.value) })
+          }
           className="w-full accent-accent"
         />
       </div>

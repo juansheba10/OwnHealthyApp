@@ -8,7 +8,12 @@ function formatIngredient(ing: Ingredient): string {
   if (ing.unit === "unidad" || ing.unit === "unidades") {
     return `${ing.qty} ${ing.name}`;
   }
-  if (ing.unit === "g" || ing.unit === "ml" || ing.unit === "kg" || ing.unit === "l") {
+  if (
+    ing.unit === "g" ||
+    ing.unit === "ml" ||
+    ing.unit === "kg" ||
+    ing.unit === "l"
+  ) {
     return `${ing.qty}${ing.unit} ${ing.name}`;
   }
   return `${ing.qty} ${ing.unit} ${ing.name}`;
@@ -48,7 +53,7 @@ export async function updateMeal(
   planId: string,
   mealIndex: number,
   updatedMeal: MealItem,
-  meals: MealItem[]
+  meals: MealItem[],
 ) {
   const supabase = await createClient();
 
@@ -74,7 +79,7 @@ export async function updateMeal(
 export async function deleteMeal(
   planId: string,
   mealIndex: number,
-  meals: MealItem[]
+  meals: MealItem[],
 ) {
   const supabase = await createClient();
 
@@ -95,7 +100,11 @@ export async function deleteMeal(
   revalidatePath("/plan");
 }
 
-export async function addMeal(planId: string, meal: MealItem, meals: MealItem[]) {
+export async function addMeal(
+  planId: string,
+  meal: MealItem,
+  meals: MealItem[],
+) {
   const supabase = await createClient();
 
   const newMeals = [...meals, meal];
@@ -120,7 +129,7 @@ export async function addMealFromRecipe(
   recipeId: string,
   time: string,
   label: string,
-  meals: MealItem[]
+  meals: MealItem[],
 ): Promise<MealItem> {
   const supabase = await createClient();
 
@@ -135,7 +144,12 @@ export async function addMealFromRecipe(
   }
 
   const ingredients = (recipe.ingredients as Ingredient[]) ?? [];
-  const macros = (recipe.macros as Macros) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  const macros = (recipe.macros as Macros) ?? {
+    kcal: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  };
 
   const meal: MealItem = {
     time,

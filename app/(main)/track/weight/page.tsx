@@ -63,12 +63,7 @@ export default function WeightPage() {
     setLogs(logs.filter((l) => l.id !== id));
   }
 
-  async function handleUpdate(
-    id: string,
-    w: number,
-    d: string,
-    n?: string
-  ) {
+  async function handleUpdate(id: string, w: number, d: string, n?: string) {
     try {
       await updateWeightLog(id, w, d, n);
       const updated = await getWeightLogs();
@@ -89,14 +84,20 @@ export default function WeightPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push("/track")} className="p-2 rounded-lg hover:bg-card">
+        <button
+          onClick={() => router.push("/track")}
+          className="p-2 rounded-lg hover:bg-card"
+        >
           <ArrowLeft size={20} className="text-muted" />
         </button>
         <h1 className="font-display text-4xl uppercase tracking-wide">Peso</h1>
       </div>
 
       {/* Quick input */}
-      <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-xl border border-border bg-card p-4 space-y-3"
+      >
         <div className="flex gap-3">
           <div className="w-36">
             <label className="block text-xs text-muted mb-1">Fecha</label>
@@ -123,7 +124,9 @@ export default function WeightPage() {
           </div>
         </div>
         <div>
-          <label className="block text-xs text-muted mb-1">Notas (opcional)</label>
+          <label className="block text-xs text-muted mb-1">
+            Notas (opcional)
+          </label>
           <input
             type="text"
             value={notes}
@@ -157,14 +160,18 @@ export default function WeightPage() {
         <div className="text-center text-muted py-8">Cargando...</div>
       ) : (
         <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-xs text-muted mb-3 uppercase tracking-wider">Evolución</h3>
+          <h3 className="text-xs text-muted mb-3 uppercase tracking-wider">
+            Evolución
+          </h3>
           <WeightChart data={logs} goalWeight={85} />
         </div>
       )}
 
       {/* History */}
       <div>
-        <h3 className="text-xs text-muted mb-3 uppercase tracking-wider">Historial</h3>
+        <h3 className="text-xs text-muted mb-3 uppercase tracking-wider">
+          Historial
+        </h3>
         <div className="space-y-1">
           {[...logs].reverse().map((log) =>
             editingId === log.id ? (
@@ -180,13 +187,17 @@ export default function WeightPage() {
                 className="flex items-center gap-3 rounded-lg bg-card px-3 py-2.5"
               >
                 <span className="text-xs text-muted w-20">
-                  {format(new Date(log.date + "T12:00:00"), "d MMM yyyy", { locale: es })}
+                  {format(new Date(log.date + "T12:00:00"), "d MMM yyyy", {
+                    locale: es,
+                  })}
                 </span>
                 <span className="font-mono text-sm text-text flex-1">
                   {Number(log.weight_kg).toFixed(1)} kg
                 </span>
                 {log.notes && (
-                  <span className="text-xs text-muted truncate max-w-32">{log.notes}</span>
+                  <span className="text-xs text-muted truncate max-w-32">
+                    {log.notes}
+                  </span>
                 )}
                 <button
                   onClick={() => setEditingId(log.id)}
@@ -201,10 +212,12 @@ export default function WeightPage() {
                   <Trash2 size={14} />
                 </button>
               </div>
-            )
+            ),
           )}
           {logs.length === 0 && (
-            <p className="text-center text-muted text-sm py-4">Sin registros aún</p>
+            <p className="text-center text-muted text-sm py-4">
+              Sin registros aún
+            </p>
           )}
         </div>
       </div>

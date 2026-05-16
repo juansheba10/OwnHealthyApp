@@ -7,7 +7,7 @@ import type { MealItem } from "@/lib/types";
 export async function logPlannedMeal(
   planId: string,
   mealTime: string,
-  snapshot: MealItem
+  snapshot: MealItem,
 ): Promise<{ id: string }> {
   const supabase = await createClient();
   const {

@@ -70,7 +70,8 @@ export function HyroxPlanView({
   );
   const [openSession, setOpenSession] = useState<OpenSessionCoord | null>(null);
 
-  const visible = filter === "all" ? weeks : weeks.filter((w) => w.phase === filter);
+  const visible =
+    filter === "all" ? weeks : weeks.filter((w) => w.phase === filter);
 
   function toggle(w: number) {
     setExpanded((prev) => {
@@ -126,7 +127,11 @@ export function HyroxPlanView({
         {weeks.map((w) => {
           const isDone = currentWeekNum !== null && w.w < currentWeekNum;
           const isCurrent = w.w === currentWeekNum;
-          const cls = isDone ? "bg-accent2" : isCurrent ? "bg-warn" : "bg-border";
+          const cls = isDone
+            ? "bg-accent2"
+            : isCurrent
+              ? "bg-warn"
+              : "bg-border";
           return (
             <div
               key={w.w}
@@ -144,7 +149,8 @@ export function HyroxPlanView({
         </span>
         {FILTERS.map((f) => {
           const active = filter === f.value;
-          const phColor = f.value !== "all" ? HYROX_PHASES[f.value].color : null;
+          const phColor =
+            f.value !== "all" ? HYROX_PHASES[f.value].color : null;
           return (
             <button
               key={f.value}
@@ -218,7 +224,9 @@ export function HyroxPlanView({
                     }`}
                     style={
                       week.raceDay
-                        ? { borderLeft: `3px solid ${HYROX_PHASES.taper.color}` }
+                        ? {
+                            borderLeft: `3px solid ${HYROX_PHASES.taper.color}`,
+                          }
                         : week.sim
                           ? { borderLeft: "3px solid #fbbf24" }
                           : isCurrent
@@ -244,8 +252,12 @@ export function HyroxPlanView({
                         {week.sim && !week.raceDay && (
                           <Tag label="simulación" color="#fbbf24" />
                         )}
-                        {week.raceDay && <Tag label="race day" color="#4ade80" />}
-                        {week.descarga && <Tag label="descarga" color="#2dd4bf" />}
+                        {week.raceDay && (
+                          <Tag label="race day" color="#4ade80" />
+                        )}
+                        {week.descarga && (
+                          <Tag label="descarga" color="#2dd4bf" />
+                        )}
                       </div>
                       <div className="flex h-12 items-center gap-2 border-l border-border px-3">
                         <div className="hidden sm:flex flex-col items-end gap-1">
@@ -279,7 +291,9 @@ export function HyroxPlanView({
                         <Tag label="simulación" color="#fbbf24" />
                       )}
                       {week.raceDay && <Tag label="race day" color="#4ade80" />}
-                      {week.descarga && <Tag label="descarga" color="#2dd4bf" />}
+                      {week.descarga && (
+                        <Tag label="descarga" color="#2dd4bf" />
+                      )}
                       <span
                         className="ml-auto font-mono text-[11px]"
                         style={{ color: phColor }}
@@ -292,7 +306,8 @@ export function HyroxPlanView({
                       <div className="border-t border-border py-1">
                         {week.sessions.map((s) => {
                           const st = HYROX_SESSION_TYPES[s.type];
-                          const status = statusMap[statusKey(week.w, s.day)] ?? null;
+                          const status =
+                            statusMap[statusKey(week.w, s.day)] ?? null;
                           return (
                             <button
                               key={s.day}
@@ -346,9 +361,8 @@ export function HyroxPlanView({
             openSession.session.day,
           )}
           initialStatus={
-            statusMap[
-              statusKey(openSession.week.w, openSession.session.day)
-            ] ?? null
+            statusMap[statusKey(openSession.week.w, openSession.session.day)] ??
+            null
           }
           initialReplacement={
             replacementMap?.[

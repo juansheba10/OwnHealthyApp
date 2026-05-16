@@ -24,7 +24,7 @@ export async function getWeightLogs(limit: number = 90) {
 export async function addWeightLog(
   weight: number,
   notes?: string,
-  date?: string
+  date?: string,
 ) {
   const supabase = await createClient();
   const {
@@ -42,7 +42,7 @@ export async function addWeightLog(
       weight_kg: weight,
       notes: notes || null,
     },
-    { onConflict: "user_id,date" }
+    { onConflict: "user_id,date" },
   );
 
   if (error) throw new Error(error.message);
@@ -54,7 +54,7 @@ export async function updateWeightLog(
   id: string,
   weight: number,
   date: string,
-  notes?: string
+  notes?: string,
 ) {
   const supabase = await createClient();
   const {

@@ -61,10 +61,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm text-muted mb-1"
-            >
+            <label htmlFor="password" className="block text-sm text-muted mb-1">
               Contraseña
             </label>
             <input
@@ -78,9 +75,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-pink">{error}</p>
-          )}
+          {error && <p className="text-sm text-pink">{error}</p>}
 
           <button
             type="submit"

@@ -36,7 +36,9 @@ export function HyroxSessionControls({
   initialStatus,
   onStatusChange,
 }: Props) {
-  const [status, setStatus] = useState<HyroxSessionStatus | null>(initialStatus);
+  const [status, setStatus] = useState<HyroxSessionStatus | null>(
+    initialStatus,
+  );
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showReplaceForm, setShowReplaceForm] = useState(false);
@@ -108,7 +110,9 @@ export function HyroxSessionControls({
 
   const showActionButtons = status === null || status === "replaced_planned";
   const doneHandler =
-    status === "replaced_planned" ? handleCompletePlannedReplacement : handleDone;
+    status === "replaced_planned"
+      ? handleCompletePlannedReplacement
+      : handleDone;
 
   return (
     <div className="space-y-2">

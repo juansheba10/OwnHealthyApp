@@ -81,11 +81,18 @@ export async function generateShoppingList(days: number) {
   return data;
 }
 
-export async function toggleItem(listId: string, itemIndex: number, items: ShoppingItem[]) {
+export async function toggleItem(
+  listId: string,
+  itemIndex: number,
+  items: ShoppingItem[],
+) {
   const supabase = await createClient();
 
   const newItems = [...items];
-  newItems[itemIndex] = { ...newItems[itemIndex], checked: !newItems[itemIndex].checked };
+  newItems[itemIndex] = {
+    ...newItems[itemIndex],
+    checked: !newItems[itemIndex].checked,
+  };
 
   const { error } = await supabase
     .from("shopping_lists")

@@ -24,7 +24,12 @@ export async function updateProfile(updates: {
   protein_target?: number;
   restrictions?: string[];
   fasting_protocol?: string | null;
-  calorie_targets?: { training: number; rest: number; double: number; football_only: number };
+  calorie_targets?: {
+    training: number;
+    rest: number;
+    double: number;
+    football_only: number;
+  };
 }) {
   const supabase = await createClient();
   const {
@@ -53,9 +58,21 @@ export async function exportUserData() {
 
   const [profile, weights, workouts, plans, recipes] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
-    supabase.from("weight_logs").select("*").eq("user_id", user.id).order("date"),
-    supabase.from("workout_logs").select("*").eq("user_id", user.id).order("date"),
-    supabase.from("meal_plans").select("*").eq("user_id", user.id).order("date"),
+    supabase
+      .from("weight_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date"),
+    supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date"),
+    supabase
+      .from("meal_plans")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date"),
     supabase.from("recipes").select("*").order("title"),
   ]);
 

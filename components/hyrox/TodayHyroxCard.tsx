@@ -49,9 +49,10 @@ export function TodayHyroxCard({
 }: Props) {
   const ph = HYROX_PHASES[phase];
   const st = HYROX_SESSION_TYPES[session.type];
-  const isReplacedPlanned = initialStatus === "replaced_planned" && initialReplacement;
+  const isReplacedPlanned =
+    initialStatus === "replaced_planned" && initialReplacement;
   const replacementTypeLabel = initialReplacement
-    ? WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type
+    ? (WORKOUT_TYPE_LABELS[initialReplacement.type] ?? initialReplacement.type)
     : null;
 
   return (
@@ -93,9 +94,13 @@ export function TodayHyroxCard({
               Reemplazo programado
             </p>
             <p className="mt-1 text-sm font-light text-text/90">
-              <span className="font-medium text-text">{replacementTypeLabel}</span>{" "}
+              <span className="font-medium text-text">
+                {replacementTypeLabel}
+              </span>{" "}
               · {initialReplacement!.duration_min} min
-              {initialReplacement!.notes ? ` — ${initialReplacement!.notes}` : ""}
+              {initialReplacement!.notes
+                ? ` — ${initialReplacement!.notes}`
+                : ""}
             </p>
             <p className="mt-1.5 text-[11px] text-muted line-through">
               Original: {st.label}

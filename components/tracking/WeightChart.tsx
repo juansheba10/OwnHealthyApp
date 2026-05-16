@@ -45,7 +45,10 @@ export function WeightChart({ data, goalWeight }: WeightChartProps) {
   return (
     <div className="h-52 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -15 }}>
+        <LineChart
+          data={chartData}
+          margin={{ top: 5, right: 5, bottom: 5, left: -15 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#252927" />
           <XAxis
             dataKey="label"

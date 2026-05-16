@@ -17,7 +17,7 @@ const MAX_TOKENS = 8192;
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 }
 
@@ -34,7 +34,7 @@ async function getUserContext(userId: string): Promise<string> {
       supabase
         .from("users")
         .select(
-          "name, calorie_targets, protein_target, restrictions, fasting_protocol, profile"
+          "name, calorie_targets, protein_target, restrictions, fasting_protocol, profile",
         )
         .eq("id", userId)
         .single(),
@@ -160,11 +160,11 @@ type ProcessResult =
     };
 
 function extractAssistantText(
-  content: Anthropic.MessageParam["content"]
+  content: Anthropic.MessageParam["content"],
 ): string | undefined {
   if (typeof content === "string") return content || undefined;
   const block = content.find(
-    (b): b is Anthropic.TextBlockParam => b.type === "text"
+    (b): b is Anthropic.TextBlockParam => b.type === "text",
   );
   return block?.text || undefined;
 }
@@ -202,7 +202,7 @@ async function runLoop(state: ChatState): Promise<ProcessResult> {
       const lastMsg = state.messages[state.messages.length - 1];
       const text =
         lastMsg?.role === "assistant"
-          ? extractAssistantText(lastMsg.content) ?? ""
+          ? (extractAssistantText(lastMsg.content) ?? "")
           : "";
       return { kind: "reply", text };
     }
@@ -231,7 +231,7 @@ async function runLoop(state: ChatState): Promise<ProcessResult> {
 async function saveChat(
   userId: string,
   userText: string,
-  replyText: string
+  replyText: string,
 ): Promise<void> {
   const supabase = getAdminClient();
   await supabase.from("chat_messages").insert([
@@ -264,7 +264,7 @@ export async function POST(request: Request) {
       if (!incoming) {
         return Response.json(
           { error: "Invalid or expired state" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       incoming.userId = userId;
@@ -273,7 +273,7 @@ export async function POST(request: Request) {
       if (!tu) {
         return Response.json(
           { error: "No pending tool to confirm" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       if (approved) {
@@ -288,8 +288,7 @@ export async function POST(request: Request) {
           type: "tool_result",
           tool_use_id: tu.id,
           content: JSON.stringify({
-            error:
-              "Usuario canceló la operación. No se aplicó ningún cambio.",
+            error: "Usuario canceló la operación. No se aplicó ningún cambio.",
           }),
           is_error: true,
         });
@@ -303,9 +302,10 @@ export async function POST(request: Request) {
       }>;
       const userContext = await getUserContext(userId);
 
-      const anthropicMessages: Anthropic.MessageParam[] = messages.map(
-        (m) => ({ role: m.role, content: m.content })
-      );
+      const anthropicMessages: Anthropic.MessageParam[] = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
       if (
         anthropicMessages.length > 0 &&
         anthropicMessages[0].role === "user"

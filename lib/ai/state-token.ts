@@ -27,7 +27,7 @@ function fromB64url(input: string): Buffer {
 
 function hmac(payload: string): string {
   return b64url(
-    crypto.createHmac("sha256", getSecret()).update(payload).digest()
+    crypto.createHmac("sha256", getSecret()).update(payload).digest(),
   );
 }
 
@@ -64,6 +64,7 @@ export function verifyState<T>(token: unknown, userId: string): T | null {
   }
   if (envelope.v !== VERSION) return null;
   if (envelope.uid !== userId) return null;
-  if (typeof envelope.exp !== "number" || envelope.exp < Date.now()) return null;
+  if (typeof envelope.exp !== "number" || envelope.exp < Date.now())
+    return null;
   return envelope.state;
 }

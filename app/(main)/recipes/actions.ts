@@ -26,9 +26,15 @@ export async function getRecipes(): Promise<RecipeRow[]> {
   } = await supabase.auth.getUser();
 
   const [recipesRes, favoritesRes] = await Promise.all([
-    supabase.from("recipes").select("*").order("created_at", { ascending: false }),
+    supabase
+      .from("recipes")
+      .select("*")
+      .order("created_at", { ascending: false }),
     user
-      ? supabase.from("recipe_favorites").select("recipe_id").eq("user_id", user.id)
+      ? supabase
+          .from("recipe_favorites")
+          .select("recipe_id")
+          .eq("user_id", user.id)
       : Promise.resolve({ data: [] as { recipe_id: string }[] }),
   ]);
 
@@ -101,7 +107,8 @@ export async function duplicateRecipe(id: string): Promise<RecipeRow> {
     .select("*")
     .eq("id", id)
     .single();
-  if (readErr || !source) throw new Error(readErr?.message ?? "Recipe not found");
+  if (readErr || !source)
+    throw new Error(readErr?.message ?? "Recipe not found");
 
   const {
     id: _id,
@@ -119,7 +126,8 @@ export async function duplicateRecipe(id: string): Promise<RecipeRow> {
     .insert({ ...rest, title: `${title} (copia)`, created_by: user.id })
     .select()
     .single();
-  if (insertErr || !copy) throw new Error(insertErr?.message ?? "Insert failed");
+  if (insertErr || !copy)
+    throw new Error(insertErr?.message ?? "Insert failed");
 
   revalidatePath("/recipes");
   return { ...copy, is_favorite: false } as RecipeRow;
