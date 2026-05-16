@@ -19,8 +19,9 @@ export function OnboardingForm({ email }: { email: string }) {
   const [sexo, setSexo] = useState<"M" | "F" | "otro">("M");
   const [altura, setAltura] = useState("");
   const [peso, setPeso] = useState("");
-  const [nivelActividad, setNivelActividad] =
-    useState<"bajo" | "moderado" | "alto" | "muy_alto">("moderado");
+  const [nivelActividad, setNivelActividad] = useState<
+    "bajo" | "moderado" | "alto" | "muy_alto"
+  >("moderado");
   const [calTraining, setCalTraining] = useState(2500);
   const [calRest, setCalRest] = useState(2000);
   const [calDouble, setCalDouble] = useState(3000);
@@ -127,9 +128,7 @@ export function OnboardingForm({ email }: { email: string }) {
               <label className="text-xs text-muted block mb-1">Sexo</label>
               <select
                 value={sexo}
-                onChange={(e) =>
-                  setSexo(e.target.value as "M" | "F" | "otro")
-                }
+                onChange={(e) => setSexo(e.target.value as "M" | "F" | "otro")}
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
               >
                 <option value="M">Masculino</option>
@@ -189,9 +188,7 @@ export function OnboardingForm({ email }: { email: string }) {
         {/* Objetivos calóricos */}
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <h3 className="text-sm font-medium">Objetivos calóricos</h3>
-          <p className="text-xs text-muted">
-            Kcal según el tipo de día
-          </p>
+          <p className="text-xs text-muted">Kcal según el tipo de día</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted block mb-1">Entreno</label>
@@ -288,9 +285,7 @@ export function OnboardingForm({ email }: { email: string }) {
           </div>
         </div>
 
-        {error && (
-          <p className="text-sm text-pink text-center">{error}</p>
-        )}
+        {error && <p className="text-sm text-pink text-center">{error}</p>}
 
         <button
           type="submit"

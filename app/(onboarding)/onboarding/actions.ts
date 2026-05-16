@@ -30,7 +30,8 @@ export async function completeOnboarding(input: OnboardingInput) {
 
   if (!user) return { ok: false as const, error: "No autenticado" };
   if (!user.email) return { ok: false as const, error: "Email faltante" };
-  if (!input.name.trim()) return { ok: false as const, error: "Nombre requerido" };
+  if (!input.name.trim())
+    return { ok: false as const, error: "Nombre requerido" };
 
   const { error } = await supabase.from("users").insert({
     id: user.id,
