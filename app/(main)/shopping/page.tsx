@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, Check } from "lucide-react";
-import { getActiveShoppingList, generateShoppingList, toggleItem } from "./actions";
+import {
+  getActiveShoppingList,
+  generateShoppingList,
+  toggleItem,
+} from "./actions";
 import type { ShoppingItem } from "@/lib/types";
 
 interface ShoppingList {
@@ -53,7 +57,7 @@ export default function ShoppingPage() {
       acc[cat].push({ ...item, _index: index });
       return acc;
     },
-    {} as Record<string, (ShoppingItem & { _index: number })[]>
+    {} as Record<string, (ShoppingItem & { _index: number })[]>,
   );
 
   if (loading) {
@@ -103,9 +107,7 @@ export default function ShoppingPage() {
       {!list ? (
         <div className="text-center text-muted py-8">
           <p>No hay lista activa.</p>
-          <p className="text-sm mt-1">
-            Genera una desde tu plan de comidas.
-          </p>
+          <p className="text-sm mt-1">Genera una desde tu plan de comidas.</p>
         </div>
       ) : (
         <div className="space-y-4">

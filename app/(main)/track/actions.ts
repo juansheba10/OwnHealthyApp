@@ -40,7 +40,8 @@ export async function getTrackingSummary() {
   const lastWeight = weights[0] ? Number(weights[0].weight_kg) : null;
   const weightTrend =
     weights.length >= 2
-      ? Number(weights[0].weight_kg) - Number(weights[weights.length - 1].weight_kg)
+      ? Number(weights[0].weight_kg) -
+        Number(weights[weights.length - 1].weight_kg)
       : null;
 
   const totalWorkouts = workouts.length;

@@ -35,7 +35,7 @@ export function TodayMealsCard({
 
   const loggedKcal = meals.reduce(
     (sum, m) => sum + (logged[m.time] ? m.kcal : 0),
-    0
+    0,
   );
 
   async function handleToggle(meal: MealItem) {
@@ -128,10 +128,7 @@ export function TodayMealsCard({
                       : "border-border text-muted hover:border-accent hover:text-accent"
                   }`}
                 >
-                  <Check
-                    size={14}
-                    className={isLogged ? "" : "opacity-0"}
-                  />
+                  <Check size={14} className={isLogged ? "" : "opacity-0"} />
                 </button>
               </div>
             );

@@ -6,7 +6,7 @@ import { getSessionForDate } from "@/lib/hyrox/plan";
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 }
 
@@ -21,7 +21,7 @@ export const WRITE_TOOLS = new Set([
 
 export function summarizeToolCall(
   name: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): { title: string; summary: string } {
   switch (name) {
     case "update_meal": {
@@ -240,7 +240,10 @@ export const toolDefinitions: Tool[] = [
       type: "object" as const,
       properties: {
         user_id: { type: "string", description: "ID del usuario" },
-        date: { type: "string", description: "Fecha de la sesión (YYYY-MM-DD)" },
+        date: {
+          type: "string",
+          description: "Fecha de la sesión (YYYY-MM-DD)",
+        },
       },
       required: ["user_id", "date"],
     },
@@ -253,7 +256,10 @@ export const toolDefinitions: Tool[] = [
       type: "object" as const,
       properties: {
         user_id: { type: "string", description: "ID del usuario" },
-        date: { type: "string", description: "Fecha de la sesión a reemplazar (YYYY-MM-DD)" },
+        date: {
+          type: "string",
+          description: "Fecha de la sesión a reemplazar (YYYY-MM-DD)",
+        },
         type: {
           type: "string",
           enum: ["crossfit", "hyrox", "football", "running", "other"],
@@ -262,9 +268,19 @@ export const toolDefinitions: Tool[] = [
         duration_min: { type: "number", description: "Duración en minutos" },
         intensity: { type: "number", description: "Intensidad del 1 al 10" },
         fatigue: { type: "number", description: "Fatiga estimada del 1 al 10" },
-        notes: { type: "string", description: "Descripción del entrenamiento alternativo" },
+        notes: {
+          type: "string",
+          description: "Descripción del entrenamiento alternativo",
+        },
       },
-      required: ["user_id", "date", "type", "duration_min", "intensity", "fatigue"],
+      required: [
+        "user_id",
+        "date",
+        "type",
+        "duration_min",
+        "intensity",
+        "fatigue",
+      ],
     },
   },
   {
@@ -337,7 +353,7 @@ export const toolDefinitions: Tool[] = [
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  userId: string
+  userId: string,
 ): Promise<string> {
   switch (name) {
     case "get_user_stats":
@@ -347,14 +363,14 @@ export async function executeTool(
         userId,
         input.date as string,
         input.meal_index as number,
-        input.new_meal as Record<string, unknown>
+        input.new_meal as Record<string, unknown>,
       );
     case "update_calorie_target":
       return await updateCalorieTarget(
         userId,
         input.day_type as string,
         input.new_target as number,
-        input.reason as string
+        input.reason as string,
       );
     case "add_recipe":
       return await addRecipe(input, userId);
@@ -364,7 +380,7 @@ export async function executeTool(
       return await getTrainingSchedule(
         userId,
         input.start_date as string,
-        input.end_date as string
+        input.end_date as string,
       );
     case "list_recipes":
       return await listRecipes(input);
@@ -379,7 +395,7 @@ export async function executeTool(
           total_kcal: number;
           total_protein: number;
           notes?: string;
-        }>
+        }>,
       );
     case "get_hyrox_session":
       return await getHyroxSession(userId, input.date as string);
@@ -391,7 +407,7 @@ export async function executeTool(
         input.duration_min as number,
         input.intensity as number,
         input.fatigue as number,
-        input.notes as string | undefined
+        input.notes as string | undefined,
       );
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -407,7 +423,9 @@ async function getUserStats(userId: string, days: number): Promise<string> {
   const [profile, weights, workouts, plans, fasts] = await Promise.all([
     supabase
       .from("users")
-      .select("name, calorie_targets, protein_target, restrictions, fasting_protocol")
+      .select(
+        "name, calorie_targets, protein_target, restrictions, fasting_protocol",
+      )
       .eq("id", userId)
       .single(),
     supabase
@@ -450,7 +468,7 @@ async function updateMeal(
   userId: string,
   date: string,
   mealIndex: number,
-  newMeal: Record<string, unknown>
+  newMeal: Record<string, unknown>,
 ): Promise<string> {
   const supabase = getAdminClient();
 
@@ -471,13 +489,10 @@ async function updateMeal(
   const oldMeal = meals[mealIndex];
   meals[mealIndex] = newMeal;
 
-  const totalKcal = meals.reduce(
-    (s, m) => s + ((m.kcal as number) ?? 0),
-    0
-  );
+  const totalKcal = meals.reduce((s, m) => s + ((m.kcal as number) ?? 0), 0);
   const totalProtein = meals.reduce(
     (s, m) => s + ((m.protein as number) ?? 0),
-    0
+    0,
   );
 
   const { error } = await supabase
@@ -491,7 +506,12 @@ async function updateMeal(
   await supabase.from("change_log").insert({
     user_id: userId,
     action: "update_meal",
-    details: { date, meal_index: mealIndex, old_meal: oldMeal, new_meal: newMeal },
+    details: {
+      date,
+      meal_index: mealIndex,
+      old_meal: oldMeal,
+      new_meal: newMeal,
+    },
   });
 
   return JSON.stringify({
@@ -505,7 +525,7 @@ async function updateCalorieTarget(
   userId: string,
   dayType: string,
   newTarget: number,
-  reason: string
+  reason: string,
 ): Promise<string> {
   const supabase = getAdminClient();
 
@@ -531,7 +551,12 @@ async function updateCalorieTarget(
   await supabase.from("change_log").insert({
     user_id: userId,
     action: "update_calorie_target",
-    details: { day_type: dayType, old_target: oldTarget, new_target: newTarget, reason },
+    details: {
+      day_type: dayType,
+      old_target: oldTarget,
+      new_target: newTarget,
+      reason,
+    },
   });
 
   return JSON.stringify({
@@ -542,7 +567,7 @@ async function updateCalorieTarget(
 
 async function addRecipe(
   input: Record<string, unknown>,
-  userId: string
+  userId: string,
 ): Promise<string> {
   const supabase = getAdminClient();
 
@@ -644,7 +669,7 @@ async function analyzeProgress(userId: string): Promise<string> {
           acc[w.type] = (acc[w.type] || 0) + 1;
           return acc;
         },
-        {} as Record<string, number>
+        {} as Record<string, number>,
       ),
     },
   });
@@ -653,7 +678,7 @@ async function analyzeProgress(userId: string): Promise<string> {
 async function getTrainingSchedule(
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<string> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -672,14 +697,12 @@ async function getTrainingSchedule(
   });
 }
 
-async function listRecipes(
-  filters: Record<string, unknown>
-): Promise<string> {
+async function listRecipes(filters: Record<string, unknown>): Promise<string> {
   const supabase = getAdminClient();
   let query = supabase
     .from("recipes")
     .select(
-      "id, title, subtitle, tags, macros, servings, prep_time_min, pairing_notes"
+      "id, title, subtitle, tags, macros, servings, prep_time_min, pairing_notes",
     );
 
   if (Array.isArray(filters.tags) && filters.tags.length > 0) {
@@ -716,7 +739,8 @@ async function getHyroxSession(userId: string, date: string): Promise<string> {
     return JSON.stringify({
       date,
       no_hyrox_session: true,
-      reason: "No hay sesión Hyrox planificada para esta fecha (fuera del rango del plan o domingo)",
+      reason:
+        "No hay sesión Hyrox planificada para esta fecha (fuera del rango del plan o domingo)",
     });
   }
 
@@ -730,7 +754,9 @@ async function getHyroxSession(userId: string, date: string): Promise<string> {
     .gte("date", `${date}T00:00:00Z`)
     .lt("date", `${date}T23:59:59Z`);
 
-  const existingLog = (logs ?? []).find((r) => (r.notes ?? "").startsWith(prefix));
+  const existingLog = (logs ?? []).find((r) =>
+    (r.notes ?? "").startsWith(prefix),
+  );
 
   let status: string | null = null;
   if (existingLog) {
@@ -762,14 +788,16 @@ async function replaceHyroxSessionAI(
   durationMin: number,
   intensity: number,
   fatigue: number,
-  notes?: string
+  notes?: string,
 ): Promise<string> {
   const supabase = getAdminClient();
   const dateObj = new Date(date + "T00:00:00");
   const sessionInfo = getSessionForDate(dateObj);
 
   if (!sessionInfo) {
-    return JSON.stringify({ error: "No hay sesión Hyrox planificada para esta fecha" });
+    return JSON.stringify({
+      error: "No hay sesión Hyrox planificada para esta fecha",
+    });
   }
 
   const { week, session } = sessionInfo;
@@ -778,7 +806,8 @@ async function replaceHyroxSessionAI(
   // Planned replacement, not a completed log: stays "programmed" until the user
   // marks it done in the UI.
   const fullNote = `${prefix} [REEMPLAZO_PLAN]${userNote ? " — " + userNote : ""}`;
-  const clampedNote = fullNote.length > 500 ? fullNote.slice(0, 497) + "..." : fullNote;
+  const clampedNote =
+    fullNote.length > 500 ? fullNote.slice(0, 497) + "..." : fullNote;
 
   // Clear any prior Hyrox row for this day so re-replacing or replacing after
   // a previous mark is idempotent.
@@ -792,7 +821,11 @@ async function replaceHyroxSessionAI(
     .filter((r) => (r.notes ?? "").startsWith(prefix))
     .map((r) => r.id);
   if (stale.length > 0) {
-    await supabase.from("workout_logs").delete().in("id", stale).eq("user_id", userId);
+    await supabase
+      .from("workout_logs")
+      .delete()
+      .in("id", stale)
+      .eq("user_id", userId);
   }
 
   const { error } = await supabase.from("workout_logs").insert({
@@ -810,7 +843,14 @@ async function replaceHyroxSessionAI(
   await supabase.from("change_log").insert({
     user_id: userId,
     action: "replace_hyrox_session",
-    details: { date, week: week.w, day: session.day, type, duration_min: durationMin, notes },
+    details: {
+      date,
+      week: week.w,
+      day: session.day,
+      type,
+      duration_min: durationMin,
+      notes,
+    },
   });
 
   return JSON.stringify({
@@ -829,7 +869,7 @@ async function generateWeeklyPlan(
     total_kcal: number;
     total_protein: number;
     notes?: string;
-  }>
+  }>,
 ): Promise<string> {
   if (!Array.isArray(days) || days.length === 0) {
     return JSON.stringify({ error: "days no puede estar vacío" });
@@ -855,7 +895,7 @@ async function generateWeeklyPlan(
 
   const dates = days.map((d) => d.date).sort();
   const avgKcal = Math.round(
-    days.reduce((s, d) => s + (d.total_kcal ?? 0), 0) / days.length
+    days.reduce((s, d) => s + (d.total_kcal ?? 0), 0) / days.length,
   );
 
   await supabase.from("change_log").insert({

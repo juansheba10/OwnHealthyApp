@@ -68,7 +68,7 @@ interface MealPlanForShopping {
 }
 
 export function aggregateShoppingList(
-  plans: MealPlanForShopping[]
+  plans: MealPlanForShopping[],
 ): ShoppingItem[] {
   const itemMap = new Map<string, ShoppingItem>();
 
@@ -76,7 +76,9 @@ export function aggregateShoppingList(
     for (const meal of plan.meals) {
       for (const item of meal.items) {
         // Try to parse "150g arroz integral" or "1 plátano"
-        const match = item.match(/^(\d+(?:\.\d+)?)\s*(g|ml|unidad(?:es)?|rebanadas?|cubos?|dientes?)?\s*(.+)$/i);
+        const match = item.match(
+          /^(\d+(?:\.\d+)?)\s*(g|ml|unidad(?:es)?|rebanadas?|cubos?|dientes?)?\s*(.+)$/i,
+        );
 
         let name: string;
         let qty: number;
@@ -111,6 +113,6 @@ export function aggregateShoppingList(
   }
 
   return Array.from(itemMap.values()).sort((a, b) =>
-    a.category.localeCompare(b.category)
+    a.category.localeCompare(b.category),
   );
 }

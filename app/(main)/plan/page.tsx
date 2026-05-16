@@ -38,7 +38,7 @@ export default function PlanPage() {
         start: new Date(week.start + "T12:00:00"),
         end: new Date(week.end + "T12:00:00"),
       }).map((d) => format(d, "yyyy-MM-dd")),
-    [week.start, week.end]
+    [week.start, week.end],
   );
 
   const plansByDate = useMemo(() => {
@@ -98,7 +98,9 @@ export default function PlanPage() {
           {plans.length === 0 && (
             <div className="rounded-xl border border-border bg-card p-4 text-center space-y-3">
               <div>
-                <p className="text-sm text-text">No hay plan para esta semana</p>
+                <p className="text-sm text-text">
+                  No hay plan para esta semana
+                </p>
                 <p className="text-xs text-muted mt-1">
                   Programa antes tus entrenos para que la IA ajuste el plan a tu
                   carga.
@@ -129,11 +131,11 @@ export default function PlanPage() {
                       const dayName = format(
                         new Date(date + "T12:00:00"),
                         "EEEE d 'de' MMMM",
-                        { locale: es }
+                        { locale: es },
                       );
                       const prompt = `Genera el plan de comidas para el ${dayName} (${date}).`;
                       router.push(
-                        `/chat?prefill=${encodeURIComponent(prompt)}`
+                        `/chat?prefill=${encodeURIComponent(prompt)}`,
                       );
                     }}
                   />

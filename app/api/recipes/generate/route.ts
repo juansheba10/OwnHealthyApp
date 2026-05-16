@@ -16,7 +16,8 @@ const draftRecipeTool: Tool = {
       title: { type: "string", description: "Nombre corto y claro" },
       subtitle: {
         type: "string",
-        description: "Una línea descriptiva (ingredientes principales o estilo)",
+        description:
+          "Una línea descriptiva (ingredientes principales o estilo)",
       },
       tags: {
         type: "array",
@@ -44,7 +45,8 @@ const draftRecipeTool: Tool = {
             qty: { type: "number" },
             unit: {
               type: "string",
-              description: "g, ml, kg, l, unidad, unidades, rebanadas, dientes, cubos…",
+              description:
+                "g, ml, kg, l, unidad, unidades, rebanadas, dientes, cubos…",
             },
           },
           required: ["name", "qty", "unit"],
@@ -52,7 +54,8 @@ const draftRecipeTool: Tool = {
       },
       steps: {
         type: "string",
-        description: "Pasos numerados separados por números: '1. ... 2. ... 3. ...'",
+        description:
+          "Pasos numerados separados por números: '1. ... 2. ... 3. ...'",
       },
       macros: {
         type: "object",
@@ -68,7 +71,8 @@ const draftRecipeTool: Tool = {
       prep_time_min: { type: "number" },
       pairing_notes: {
         type: "string",
-        description: "Cuándo encaja este plato (entreno, descanso, snack, etc.)",
+        description:
+          "Cuándo encaja este plato (entreno, descanso, snack, etc.)",
       },
     },
     required: [
@@ -123,12 +127,12 @@ export async function POST(request: Request) {
     });
 
     const toolUse = response.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
     if (!toolUse) {
       return Response.json(
         { error: "El modelo no devolvió una receta estructurada" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 

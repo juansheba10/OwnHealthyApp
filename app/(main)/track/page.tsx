@@ -61,7 +61,9 @@ export default function TrackPage() {
                 )}
               </div>
             ) : (
-              <p className="text-xs text-muted mt-0.5">Sin registros esta semana</p>
+              <p className="text-xs text-muted mt-0.5">
+                Sin registros esta semana
+              </p>
             )}
           </div>
           <ChevronRight size={16} className="text-muted" />
@@ -79,14 +81,18 @@ export default function TrackPage() {
             <h3 className="text-sm font-medium">Entrenamientos</h3>
             {summary && summary.totalWorkouts > 0 ? (
               <div className="flex items-center gap-3 mt-0.5 text-xs text-muted">
-                <span className="font-mono text-lg text-text">{summary.totalWorkouts}</span>
+                <span className="font-mono text-lg text-text">
+                  {summary.totalWorkouts}
+                </span>
                 <span>sesiones · {summary.totalMinutes} min</span>
                 {summary.avgFatigue !== null && (
                   <span>· fatiga {summary.avgFatigue.toFixed(1)}</span>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-muted mt-0.5">Sin entrenos esta semana</p>
+              <p className="text-xs text-muted mt-0.5">
+                Sin entrenos esta semana
+              </p>
             )}
           </div>
           <ChevronRight size={16} className="text-muted" />

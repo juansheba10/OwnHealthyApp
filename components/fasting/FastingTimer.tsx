@@ -114,9 +114,14 @@ export function FastingTimer({ initialSession, protocol }: FastingTimerProps) {
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs text-muted uppercase tracking-wider flex items-center gap-2">
-          <Timer size={14} className={isComplete ? "text-accent" : "text-purple"} />
+          <Timer
+            size={14}
+            className={isComplete ? "text-accent" : "text-purple"}
+          />
           Ayuno en curso
-          <span className="text-muted/70">· {session.protocol ?? protocolLabel}</span>
+          <span className="text-muted/70">
+            · {session.protocol ?? protocolLabel}
+          </span>
         </h3>
         <button
           onClick={handleStop}

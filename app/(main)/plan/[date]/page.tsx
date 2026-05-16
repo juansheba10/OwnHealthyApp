@@ -107,7 +107,7 @@ export default function DayEditorPage() {
   async function handleAddFromRecipe(
     recipeId: string,
     time: string,
-    label: string
+    label: string,
   ) {
     if (!plan) return;
     const newMeal = await addMealFromRecipe(
@@ -115,7 +115,7 @@ export default function DayEditorPage() {
       recipeId,
       time,
       label,
-      plan.meals
+      plan.meals,
     );
     const newMeals = [...plan.meals, newMeal];
     setPlan({
@@ -133,7 +133,7 @@ export default function DayEditorPage() {
     const next = new Date();
     next.setHours(h, m + 180, 0, 0);
     return `${String(next.getHours()).padStart(2, "0")}:${String(
-      next.getMinutes()
+      next.getMinutes(),
     ).padStart(2, "0")}`;
   }
 

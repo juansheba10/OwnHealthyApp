@@ -114,7 +114,9 @@ function ChatPageInner() {
 
     try {
       const payload = next
-        .filter((m): m is Extract<Message, { kind: "text" }> => m.kind === "text")
+        .filter(
+          (m): m is Extract<Message, { kind: "text" }> => m.kind === "text",
+        )
         .map((m) => ({ role: m.role, content: m.content }));
 
       const res = await fetch("/api/chat", {
@@ -204,7 +206,8 @@ function ChatPageInner() {
             </div>
             <p className="text-sm">Soy tu asistente nutricional.</p>
             <p className="text-xs mt-1">
-              Puedo analizar tu progreso, sugerir cambios en tu plan, o responder dudas.
+              Puedo analizar tu progreso, sugerir cambios en tu plan, o
+              responder dudas.
             </p>
             <div className="flex flex-wrap gap-2 mt-4 justify-center">
               {[

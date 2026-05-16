@@ -1,0 +1,44 @@
+name: Supabase migrations
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+
+permissions:
+  contents: read
+
+jobs:
+  append-only:
+    name: Migrations are append-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject modified or deleted migrations
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**')
+          if [ -z "$changed" ]; then
+            echo "No migration changes."
+            exit 0
+          fi
+          echo "Migration changes in this PR:"
+          echo "$changed"
+          violations=$(echo "$changed" | awk '$1 != "A" { print }')
+          if [ -n "$violations" ]; then
+            echo
+            echo "::error::Migrations must be append-only. Found modified/deleted/renamed files:"
+            echo "$violations"
+            echo
+            echo "If you need to change behavior, add a new migration file instead."
+            exit 1
+          fi
+          echo "All migration changes are additions. OK."

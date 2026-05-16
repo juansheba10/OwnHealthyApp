@@ -69,14 +69,14 @@ export default function SettingsPage() {
   }
 
   if (!profile) {
-    return <div className="text-center text-muted py-8">Error cargando perfil</div>;
+    return (
+      <div className="text-center text-muted py-8">Error cargando perfil</div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-4xl uppercase tracking-wide">
-        Ajustes
-      </h1>
+      <h1 className="font-display text-4xl uppercase tracking-wide">Ajustes</h1>
 
       {/* Profile info */}
       <div className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -101,7 +101,13 @@ export default function SettingsPage() {
             (type) => (
               <div key={type}>
                 <label className="text-xs text-muted block mb-1 capitalize">
-                  {type === "football_only" ? "Fútbol" : type === "double" ? "Doble sesión" : type === "training" ? "Entreno" : "Descanso"}
+                  {type === "football_only"
+                    ? "Fútbol"
+                    : type === "double"
+                      ? "Doble sesión"
+                      : type === "training"
+                        ? "Entreno"
+                        : "Descanso"}
                 </label>
                 <input
                   type="number"
@@ -118,7 +124,7 @@ export default function SettingsPage() {
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-mono text-text focus:border-accent focus:outline-none"
                 />
               </div>
-            )
+            ),
           )}
         </div>
       </div>
@@ -144,7 +150,8 @@ export default function SettingsPage() {
           onChange={(e) =>
             setProfile({
               ...profile,
-              fasting_protocol: e.target.value === "none" ? null : e.target.value,
+              fasting_protocol:
+                e.target.value === "none" ? null : e.target.value,
             })
           }
           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
@@ -160,29 +167,33 @@ export default function SettingsPage() {
       <div className="rounded-xl border border-border bg-card p-4 space-y-3">
         <h3 className="text-sm font-medium">Restricciones alimentarias</h3>
         <div className="flex flex-wrap gap-2">
-          {["sin_pescado", "sin_aguacate", "sin_lactosa", "sin_gluten", "pocas_verduras_crudas"].map(
-            (r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() =>
-                  setProfile({
-                    ...profile,
-                    restrictions: profile.restrictions.includes(r)
-                      ? profile.restrictions.filter((x) => x !== r)
-                      : [...profile.restrictions, r],
-                  })
-                }
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  profile.restrictions.includes(r)
-                    ? "bg-pink/20 text-pink border border-pink/30"
-                    : "bg-surface text-muted border border-border"
-                }`}
-              >
-                {r.replace(/_/g, " ")}
-              </button>
-            )
-          )}
+          {[
+            "sin_pescado",
+            "sin_aguacate",
+            "sin_lactosa",
+            "sin_gluten",
+            "pocas_verduras_crudas",
+          ].map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() =>
+                setProfile({
+                  ...profile,
+                  restrictions: profile.restrictions.includes(r)
+                    ? profile.restrictions.filter((x) => x !== r)
+                    : [...profile.restrictions, r],
+                })
+              }
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                profile.restrictions.includes(r)
+                  ? "bg-pink/20 text-pink border border-pink/30"
+                  : "bg-surface text-muted border border-border"
+              }`}
+            >
+              {r.replace(/_/g, " ")}
+            </button>
+          ))}
         </div>
       </div>
 

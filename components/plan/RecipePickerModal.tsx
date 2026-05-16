@@ -73,7 +73,7 @@ export function RecipePickerModal({
 
   const grouped = useMemo(() => {
     const filtered = recipes.filter((r) =>
-      !search ? true : r.title.toLowerCase().includes(search.toLowerCase())
+      !search ? true : r.title.toLowerCase().includes(search.toLowerCase()),
     );
     const buckets: Record<Section, Recipe[]> = {
       main: [],
@@ -233,12 +233,11 @@ export function RecipePickerModal({
                 </div>
               );
             })}
-          {!loading &&
-            SECTION_ORDER.every((s) => grouped[s].length === 0) && (
-              <p className="text-center text-muted py-8 text-sm">
-                No hay recetas que coincidan
-              </p>
-            )}
+          {!loading && SECTION_ORDER.every((s) => grouped[s].length === 0) && (
+            <p className="text-center text-muted py-8 text-sm">
+              No hay recetas que coincidan
+            </p>
+          )}
         </div>
       </div>
     </div>

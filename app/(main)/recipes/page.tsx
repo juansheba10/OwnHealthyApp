@@ -81,7 +81,7 @@ export default function RecipesPage() {
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   }
 
@@ -115,7 +115,7 @@ export default function RecipesPage() {
   async function handleToggleFavorite(recipe: RecipeRow) {
     const next = !recipe.is_favorite;
     setRecipes((prev) =>
-      prev.map((r) => (r.id === recipe.id ? { ...r, is_favorite: next } : r))
+      prev.map((r) => (r.id === recipe.id ? { ...r, is_favorite: next } : r)),
     );
     if (selectedRecipe?.id === recipe.id) {
       setSelectedRecipe({ ...recipe, is_favorite: next });
@@ -125,8 +125,8 @@ export default function RecipesPage() {
     } catch {
       setRecipes((prev) =>
         prev.map((r) =>
-          r.id === recipe.id ? { ...r, is_favorite: !next } : r
-        )
+          r.id === recipe.id ? { ...r, is_favorite: !next } : r,
+        ),
       );
     }
   }
@@ -302,7 +302,9 @@ function RecipeCard({
           e.stopPropagation();
           onToggleFavorite();
         }}
-        aria-label={recipe.is_favorite ? "Quitar de favoritas" : "Marcar favorita"}
+        aria-label={
+          recipe.is_favorite ? "Quitar de favoritas" : "Marcar favorita"
+        }
         className={`absolute top-3 right-3 p-1.5 rounded-full transition-colors ${
           recipe.is_favorite
             ? "text-pink hover:bg-pink/10"
@@ -374,9 +376,7 @@ function RecipeDetailModal({
             <button
               onClick={onToggleFavorite}
               className={`p-1 rounded hover:bg-card shrink-0 ${
-                recipe.is_favorite
-                  ? "text-pink"
-                  : "text-muted hover:text-pink"
+                recipe.is_favorite ? "text-pink" : "text-muted hover:text-pink"
               }`}
               title={
                 recipe.is_favorite ? "Quitar de favoritas" : "Marcar favorita"
@@ -504,7 +504,9 @@ function RecipeDetailModal({
         {/* Steps */}
         {recipe.steps && (
           <div>
-            <h3 className="text-sm font-semibold text-text mb-2">Preparación</h3>
+            <h3 className="text-sm font-semibold text-text mb-2">
+              Preparación
+            </h3>
             <div className="space-y-2">
               {recipe.steps
                 .split(/\d+\.\s*/)
@@ -573,7 +575,7 @@ function RecipeModal({
   onClose: () => void;
 }) {
   const [form, setForm] = useState<RecipeInput>(
-    initial ? recipeToInput(initial) : EMPTY_FORM
+    initial ? recipeToInput(initial) : EMPTY_FORM,
   );
   const [aiPrompt, setAiPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -641,7 +643,10 @@ function RecipeModal({
             />
             <div className="flex items-center justify-between gap-2">
               {aiError ? (
-                <p className="text-xs text-pink flex-1 truncate" title={aiError}>
+                <p
+                  className="text-xs text-pink flex-1 truncate"
+                  title={aiError}
+                >
                   {aiError}
                 </p>
               ) : (

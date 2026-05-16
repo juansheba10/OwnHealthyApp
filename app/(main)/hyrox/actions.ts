@@ -27,11 +27,16 @@ interface SessionDefaults {
 }
 
 const DEFAULTS: Record<HyroxSessionType, SessionDefaults> = {
-  run:      { workoutType: "running", duration_min: 35, intensity: 6, fatigue: 6 },
-  hybrid:   { workoutType: "hyrox",   duration_min: 60, intensity: 8, fatigue: 7 },
-  strength: { workoutType: "hyrox",   duration_min: 60, intensity: 7, fatigue: 7 },
-  sim:      { workoutType: "hyrox",   duration_min: 80, intensity: 9, fatigue: 9 },
-  rest:     { workoutType: "other",   duration_min: 20, intensity: 2, fatigue: 2 },
+  run: { workoutType: "running", duration_min: 35, intensity: 6, fatigue: 6 },
+  hybrid: { workoutType: "hyrox", duration_min: 60, intensity: 8, fatigue: 7 },
+  strength: {
+    workoutType: "hyrox",
+    duration_min: 60,
+    intensity: 7,
+    fatigue: 7,
+  },
+  sim: { workoutType: "hyrox", duration_min: 80, intensity: 9, fatigue: 9 },
+  rest: { workoutType: "other", duration_min: 20, intensity: 2, fatigue: 2 },
 };
 
 function stripHtml(s: string): string {
@@ -185,12 +190,15 @@ export async function completeReplacedHyroxSession(
       (r.notes ?? "").startsWith(prefix) &&
       (r.notes ?? "").includes(REPLACE_PLAN_MARKER),
   );
-  if (!target) throw new Error("No hay reemplazo planificado para marcar como hecho");
+  if (!target)
+    throw new Error("No hay reemplazo planificado para marcar como hecho");
 
   const current = target.notes ?? "";
   // Strip the marker but keep the user's notes intact.
   const cleaned = clamp500(
-    current.replace(/\s*\[REEMPLAZO_PLAN\]\s*(—\s*)?/, " — ").replace(/\s+—\s+$/, ""),
+    current
+      .replace(/\s*\[REEMPLAZO_PLAN\]\s*(—\s*)?/, " — ")
+      .replace(/\s+—\s+$/, ""),
   );
 
   const { error } = await supabase
@@ -220,7 +228,11 @@ async function deleteHyroxRowsForDay(
     .filter((r) => (r.notes ?? "").startsWith(prefix))
     .map((r) => r.id);
   if (ids.length === 0) return;
-  await supabase.from("workout_logs").delete().in("id", ids).eq("user_id", userId);
+  await supabase
+    .from("workout_logs")
+    .delete()
+    .in("id", ids)
+    .eq("user_id", userId);
 }
 
 // Removes the Hyrox log for the given week/day from its planned date.
@@ -237,9 +249,7 @@ export async function undoHyroxSession(weekNum: number, day: HyroxDayCode) {
     .gte("date", `${dateIso}T00:00:00Z`)
     .lt("date", `${dateIso}T23:59:59Z`);
 
-  const target = (rows ?? []).find((r) =>
-    (r.notes ?? "").startsWith(prefix),
-  );
+  const target = (rows ?? []).find((r) => (r.notes ?? "").startsWith(prefix));
   if (!target) return;
 
   const { error } = await supabase
