@@ -82,13 +82,13 @@ export default function SettingsPage() {
       <div className="rounded-xl border border-border bg-card p-4 space-y-3">
         <h3 className="text-sm font-medium">Perfil</h3>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
+          <div className="min-w-0">
             <span className="text-xs text-muted block">Nombre</span>
-            <span className="text-text">{profile.name}</span>
+            <span className="text-text truncate block">{profile.name}</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="text-xs text-muted block">Email</span>
-            <span className="text-text">{profile.email}</span>
+            <span className="text-text truncate block">{profile.email}</span>
           </div>
         </div>
       </div>

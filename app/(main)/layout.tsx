@@ -24,10 +24,10 @@ export default async function MainLayout({
   if (!profile) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh">
       <Sidebar />
-      <main className="flex-1 md:ml-60 pb-20 md:pb-0">
-        <div className="mx-auto max-w-4xl px-4 py-6">{children}</div>
+      <main className="flex-1 md:ml-60 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6 md:py-8">{children}</div>
       </main>
       <BottomNav />
     </div>

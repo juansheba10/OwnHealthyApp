@@ -66,14 +66,12 @@ export default function ShoppingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-4xl uppercase tracking-wide">
-          Lista de compra
-        </h1>
-      </div>
+      <h1 className="font-display text-4xl uppercase tracking-wide">
+        Lista de compra
+      </h1>
 
       {/* Generate controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}

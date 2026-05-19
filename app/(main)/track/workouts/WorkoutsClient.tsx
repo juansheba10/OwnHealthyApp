@@ -132,7 +132,7 @@ export function WorkoutsClient() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="rounded-xl border border-border bg-card p-3 text-center">
           <p className="text-2xl font-mono text-text">{thisWeek.length}</p>
           <p className="text-xs text-muted">sesiones</p>

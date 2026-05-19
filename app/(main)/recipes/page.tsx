@@ -366,8 +366,8 @@ function RecipeDetailModal({
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display text-3xl uppercase tracking-wide">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-3xl uppercase tracking-wide break-words">
               {recipe.title}
             </h2>
             <p className="text-sm text-muted mt-1">{recipe.subtitle}</p>
@@ -727,7 +727,7 @@ function RecipeModal({
             rows={3}
             className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
           />
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <input
               type="number"
               placeholder="kcal"
