@@ -188,7 +188,7 @@ function ChatPageInner() {
   const showSuggestions = messages.length === 0 && !pending && !loading;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-3rem)]">
+    <div className="flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-3rem)]">
       <div className="shrink-0 pb-4">
         <h1 className="font-display text-4xl uppercase tracking-wide">
           Chat IA

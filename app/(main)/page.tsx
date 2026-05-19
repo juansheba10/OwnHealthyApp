@@ -201,7 +201,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {/* Weight */}
         <Link
           href="/track/weight"
