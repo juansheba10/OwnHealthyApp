@@ -94,12 +94,15 @@ export function aggregateShoppingList(
           unit = "unidad";
         }
 
-        const key = name.toLowerCase();
+        // Keyed by name+unit: same ingredient with a different unit
+        // (e.g. "200g pollo" vs "1 pechuga de pollo") gets its own entry
+        // instead of being merged incorrectly or dropped.
+        const key = `${name.toLowerCase()}|${unit.toLowerCase()}`;
         const existing = itemMap.get(key);
 
-        if (existing && existing.unit === unit) {
+        if (existing) {
           existing.qty += qty;
-        } else if (!existing) {
+        } else {
           itemMap.set(key, {
             name,
             qty,

@@ -13,7 +13,11 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (icons, etc.)
+     * - api/cron (server-to-server, authenticated via a shared secret
+     *   header instead of a session cookie — see app/api/cron/reminders)
+     * - manifest.json / sw.js (must be publicly fetchable, including from
+     *   the unauthenticated /login page)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|api/cron|manifest.json|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

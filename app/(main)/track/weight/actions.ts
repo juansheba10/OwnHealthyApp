@@ -80,7 +80,17 @@ export async function updateWeightLog(
 
 export async function deleteWeightLog(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("weight_logs").delete().eq("id", id);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("weight_logs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/track/weight");
 }

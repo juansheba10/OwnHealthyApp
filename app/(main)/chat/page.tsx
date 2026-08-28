@@ -55,8 +55,35 @@ function ChatPageInner() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUserId(data.user.id);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setUserId(data.user.id);
+
+      const { data: history, error } = await supabase
+        .from("chat_messages")
+        .select("role, content")
+        .eq("user_id", data.user.id)
+        .order("created_at", { ascending: true })
+        .limit(50);
+
+      if (error) {
+        console.error("Failed to load chat history:", error);
+        return;
+      }
+      if (history && history.length > 0) {
+        setMessages(
+          history
+            .filter(
+              (m): m is typeof m & { role: "user" | "assistant" } =>
+                m.role === "user" || m.role === "assistant",
+            )
+            .map((m) => ({
+              kind: "text",
+              role: m.role,
+              content: (m.content as { text?: string })?.text ?? "",
+            })),
+        );
+      }
     });
   }, []);
 
