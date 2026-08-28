@@ -50,7 +50,7 @@ export interface UserProfile {
   edad: number;
   altura: number;
   peso: number;
-  sexo: "M" | "F";
+  sexo: "M" | "F" | "otro";
   nivel_actividad: string;
 }
 

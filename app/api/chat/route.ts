@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import {
   toolDefinitions,
   executeTool,
@@ -8,18 +8,11 @@ import {
   summarizeToolCall,
 } from "@/lib/ai/tools";
 import { signState, verifyState } from "@/lib/ai/state-token";
-import { getSessionForDate } from "@/lib/hyrox/plan";
+import { getSessionForDateForUser } from "@/lib/hyrox/data";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 8192;
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 async function getUserContext(userId: string): Promise<string> {
   const supabase = getAdminClient();
@@ -76,8 +69,25 @@ async function getUserContext(userId: string): Promise<string> {
         .limit(7),
     ]);
 
+  for (const [label, result] of [
+    ["profile", profile],
+    ["weights", weights],
+    ["workouts", workouts],
+    ["todayPlan", todayPlan],
+    ["activeFast", activeFast],
+    ["recentFasts", recentFasts],
+  ] as const) {
+    if (result.error) {
+      console.error(`getUserContext: ${label} query failed:`, result.error);
+    }
+  }
+
   const todayDate = new Date();
-  const todayHyrox = getSessionForDate(todayDate);
+  const todayHyrox = await getSessionForDateForUser(
+    supabase,
+    userId,
+    todayDate,
+  );
   const todayHyroxStr = todayHyrox
     ? `Semana ${todayHyrox.week.w} · ${todayHyrox.session.day} · ${todayHyrox.session.type} — ${todayHyrox.session.desc.replace(/<[^>]*>/g, "")}`
     : "sin sesión Hyrox hoy";

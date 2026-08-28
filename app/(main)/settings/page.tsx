@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Download, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getUserProfile, updateProfile, exportUserData } from "./actions";
+import { NotificationsSection } from "@/components/settings/NotificationsSection";
 import type { CalorieTargets } from "@/lib/types";
 
 interface Profile {
@@ -196,6 +197,9 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* Notifications */}
+      <NotificationsSection />
 
       {/* Save */}
       <button

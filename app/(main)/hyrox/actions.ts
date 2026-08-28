@@ -3,11 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
-  HYROX_WEEKS,
   getSessionDateIso,
   type HyroxDayCode,
   type HyroxSessionType,
+  type HyroxWeek,
 } from "@/lib/hyrox/plan";
+import { getRaceForUser, getWeeksForRace } from "@/lib/hyrox/data";
 import type { WorkoutType } from "@/lib/types";
 
 export type HyroxSessionStatus =
@@ -51,11 +52,8 @@ function clamp500(s: string): string {
   return s.length > 500 ? s.slice(0, 497) + "..." : s;
 }
 
-function sessionTimestamp(weekNum: number, day: HyroxDayCode): string {
-  const week = HYROX_WEEKS.find((w) => w.w === weekNum);
-  if (!week) throw new Error("Semana no encontrada");
-  const dateIso = getSessionDateIso(week, day);
-  return `${dateIso}T12:00:00Z`;
+function sessionTimestamp(week: HyroxWeek, day: HyroxDayCode): string {
+  return `${getSessionDateIso(week, day)}T12:00:00Z`;
 }
 
 async function getAuthedUserId(): Promise<{
@@ -70,12 +68,20 @@ async function getAuthedUserId(): Promise<{
   return { supabase, userId: user.id };
 }
 
-function lookupSession(weekNum: number, day: HyroxDayCode) {
-  const week = HYROX_WEEKS.find((w) => w.w === weekNum);
+async function lookupSession(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  weekNum: number,
+  day: HyroxDayCode,
+) {
+  const race = await getRaceForUser(supabase, userId);
+  if (!race) throw new Error("No hay plan Hyrox configurado");
+  const weeks = await getWeeksForRace(supabase, race.id);
+  const week = weeks.find((w) => w.w === weekNum);
   if (!week) throw new Error("Semana no encontrada");
   const session = week.sessions.find((s) => s.day === day);
   if (!session) throw new Error("Sesión no encontrada");
-  return { week, session };
+  return { race, week, session };
 }
 
 function revalidateHyrox() {
@@ -87,7 +93,7 @@ function revalidateHyrox() {
 
 export async function logHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();
-  const { week, session } = lookupSession(weekNum, day);
+  const { week, session } = await lookupSession(supabase, userId, weekNum, day);
   const d = DEFAULTS[session.type];
   const note = clamp500(
     `${hyroxNotePrefix(week.w, day)} — ${stripHtml(session.desc)}`,
@@ -97,7 +103,7 @@ export async function logHyroxSession(weekNum: number, day: HyroxDayCode) {
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
-    date: sessionTimestamp(week.w, day),
+    date: sessionTimestamp(week, day),
     type: d.workoutType,
     duration_min: d.duration_min,
     intensity: d.intensity,
@@ -110,7 +116,7 @@ export async function logHyroxSession(weekNum: number, day: HyroxDayCode) {
 
 export async function skipHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();
-  const { week, session } = lookupSession(weekNum, day);
+  const { week, session } = await lookupSession(supabase, userId, weekNum, day);
   const note = clamp500(
     `${hyroxNotePrefix(week.w, day)} ${SKIP_MARKER} — ${stripHtml(session.desc)}`,
   );
@@ -119,7 +125,7 @@ export async function skipHyroxSession(weekNum: number, day: HyroxDayCode) {
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
-    date: sessionTimestamp(week.w, day),
+    date: sessionTimestamp(week, day),
     type: "other",
     duration_min: 0,
     intensity: 1,
@@ -142,7 +148,12 @@ export interface ReplaceHyroxInput {
 
 export async function replaceHyroxSession(input: ReplaceHyroxInput) {
   const { supabase, userId } = await getAuthedUserId();
-  const { week } = lookupSession(input.weekNum, input.day);
+  const { week } = await lookupSession(
+    supabase,
+    userId,
+    input.weekNum,
+    input.day,
+  );
   const userNote = (input.notes ?? "").trim();
   const note = clamp500(
     `${hyroxNotePrefix(week.w, input.day)} ${REPLACE_PLAN_MARKER}${userNote ? " — " + userNote : ""}`,
@@ -155,7 +166,7 @@ export async function replaceHyroxSession(input: ReplaceHyroxInput) {
 
   const { error } = await supabase.from("workout_logs").insert({
     user_id: userId,
-    date: sessionTimestamp(week.w, input.day),
+    date: sessionTimestamp(week, input.day),
     type: input.type,
     duration_min: input.duration_min,
     intensity: input.intensity,
@@ -174,7 +185,7 @@ export async function completeReplacedHyroxSession(
   day: HyroxDayCode,
 ) {
   const { supabase, userId } = await getAuthedUserId();
-  const { week } = lookupSession(weekNum, day);
+  const { week } = await lookupSession(supabase, userId, weekNum, day);
   const dateIso = getSessionDateIso(week, day);
   const prefix = hyroxNotePrefix(weekNum, day);
 
@@ -213,7 +224,7 @@ export async function completeReplacedHyroxSession(
 async function deleteHyroxRowsForDay(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
-  week: (typeof HYROX_WEEKS)[number],
+  week: HyroxWeek,
   day: HyroxDayCode,
 ) {
   const dateIso = getSessionDateIso(week, day);
@@ -238,7 +249,7 @@ async function deleteHyroxRowsForDay(
 // Removes the Hyrox log for the given week/day from its planned date.
 export async function undoHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();
-  const { week } = lookupSession(weekNum, day);
+  const { week } = await lookupSession(supabase, userId, weekNum, day);
   const dateIso = getSessionDateIso(week, day);
   const prefix = hyroxNotePrefix(weekNum, day);
 

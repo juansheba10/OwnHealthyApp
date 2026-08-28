@@ -1,14 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
-import { getSessionForDate } from "@/lib/hyrox/plan";
-
-// Use service role client for AI tools (bypasses RLS)
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { getSessionForDateForUser } from "@/lib/hyrox/data";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 // Tools that mutate state — must be confirmed by the user before executing.
 export const WRITE_TOOLS = new Set([
@@ -733,14 +725,14 @@ async function listRecipes(filters: Record<string, unknown>): Promise<string> {
 async function getHyroxSession(userId: string, date: string): Promise<string> {
   const supabase = getAdminClient();
   const dateObj = new Date(date + "T00:00:00");
-  const sessionInfo = getSessionForDate(dateObj);
+  const sessionInfo = await getSessionForDateForUser(supabase, userId, dateObj);
 
   if (!sessionInfo) {
     return JSON.stringify({
       date,
       no_hyrox_session: true,
       reason:
-        "No hay sesión Hyrox planificada para esta fecha (fuera del rango del plan o domingo)",
+        "No hay plan Hyrox configurado, o no hay sesión planificada para esta fecha (fuera del rango del plan o domingo)",
     });
   }
 
@@ -792,11 +784,12 @@ async function replaceHyroxSessionAI(
 ): Promise<string> {
   const supabase = getAdminClient();
   const dateObj = new Date(date + "T00:00:00");
-  const sessionInfo = getSessionForDate(dateObj);
+  const sessionInfo = await getSessionForDateForUser(supabase, userId, dateObj);
 
   if (!sessionInfo) {
     return JSON.stringify({
-      error: "No hay sesión Hyrox planificada para esta fecha",
+      error:
+        "No hay plan Hyrox configurado, o no hay sesión planificada para esta fecha",
     });
   }
 

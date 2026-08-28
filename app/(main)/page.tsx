@@ -6,7 +6,8 @@ import type { MealItem, CalorieTargets } from "@/lib/types";
 import { FastingTimer } from "@/components/fasting/FastingTimer";
 import { TodayMealsCard } from "@/components/plan/TodayMealsCard";
 import { TodayHyroxCard } from "@/components/hyrox/TodayHyroxCard";
-import { getSessionForDate, daysUntilRace, isoDate } from "@/lib/hyrox/plan";
+import { daysUntilRace, isoDate } from "@/lib/hyrox/plan";
+import { getSessionForDateForUser } from "@/lib/hyrox/data";
 import type { FastingSession } from "@/app/(main)/fasting/lib";
 
 export default async function DashboardPage() {
@@ -124,7 +125,7 @@ export default async function DashboardPage() {
 
   // Today's Hyrox session
   const now = new Date();
-  const hyrox = getSessionForDate(now);
+  const hyrox = await getSessionForDateForUser(supabase, user.id, now);
   const todayIso = isoDate(now);
   let hyroxStatus: "done" | "skipped" | "replaced" | "replaced_planned" | null =
     null;
@@ -159,7 +160,7 @@ export default async function DashboardPage() {
       }
     }
   }
-  const raceCountdown = daysUntilRace(now);
+  const raceCountdown = hyrox ? daysUntilRace(hyrox.race.raceDate, now) : 0;
 
   return (
     <div className="space-y-6">

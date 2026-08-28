@@ -1,13 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import {
-  HYROX_WEEKS,
-  HYROX_RACE_VENUE,
-  HYROX_PLAN_START,
-  HYROX_RACE_DATE,
-  getWeekForDate,
-  daysUntilRace,
-} from "@/lib/hyrox/plan";
+import { getWeekForDate, daysUntilRace } from "@/lib/hyrox/plan";
+import { getRaceForUser, getWeeksForRace } from "@/lib/hyrox/data";
 import type { HyroxSessionStatus } from "./actions";
 import {
   HyroxPlanView,
@@ -47,16 +41,38 @@ export default async function HyroxPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const race = await getRaceForUser(supabase, user.id);
+
+  if (!race) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted">
+        <h1 className="font-display text-2xl uppercase tracking-wide text-text">
+          Sin plan Hyrox
+        </h1>
+        <p className="text-sm max-w-sm">
+          Todavía no hay ningún plan de carrera configurado para tu cuenta.
+        </p>
+      </div>
+    );
+  }
+
+  const weeks = await getWeeksForRace(supabase, race.id);
+
   const today = new Date();
-  const currentWeek = getWeekForDate(today);
-  const days = daysUntilRace(today);
+  const currentWeek = getWeekForDate(
+    weeks,
+    race.planStart,
+    race.raceDate,
+    today,
+  );
+  const days = daysUntilRace(race.raceDate, today);
 
   const { data: logs } = await supabase
     .from("workout_logs")
     .select("notes, date, type, duration_min")
     .eq("user_id", user.id)
-    .gte("date", `${HYROX_PLAN_START}T00:00:00Z`)
-    .lte("date", `${HYROX_RACE_DATE}T23:59:59Z`)
+    .gte("date", `${race.planStart}T00:00:00Z`)
+    .lte("date", `${race.raceDate}T23:59:59Z`)
     .like("notes", "Hyrox %");
 
   const statusMap: SessionStatusMap = {};
@@ -79,9 +95,9 @@ export default async function HyroxPage() {
 
   return (
     <HyroxPlanView
-      weeks={HYROX_WEEKS}
+      weeks={weeks}
       currentWeekNum={currentWeek?.w ?? null}
-      raceVenue={HYROX_RACE_VENUE}
+      raceVenue={race.venue ?? ""}
       daysUntilRace={days}
       statusMap={statusMap}
       replacementMap={replacementMap}
