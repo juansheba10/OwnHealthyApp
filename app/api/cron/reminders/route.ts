@@ -12,11 +12,19 @@ const TIMEZONE = "Atlantic/Canary";
 const HYROX_REMINDER_HOUR = 7;
 const MEAL_WINDOW_MIN = 5;
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? "",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
-  process.env.VAPID_PRIVATE_KEY ?? "",
-);
+// Set lazily (not at module load) so `next build`'s page-data collection —
+// which evaluates this module with placeholder/empty env vars — doesn't
+// trip web-push's subject validation.
+let vapidConfigured = false;
+function ensureVapidConfigured(): void {
+  if (vapidConfigured) return;
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT ?? "",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
+    process.env.VAPID_PRIVATE_KEY ?? "",
+  );
+  vapidConfigured = true;
+}
 
 function stripHtml(s: string): string {
   return s.replace(/<[^>]*>/g, "");
@@ -227,6 +235,7 @@ export async function POST(request: Request) {
   if (!secret || secret !== process.env.CRON_SECRET) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  ensureVapidConfigured();
 
   const supabase = getAdminClient();
   const now = new Date();
