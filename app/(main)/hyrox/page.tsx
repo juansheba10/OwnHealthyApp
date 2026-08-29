@@ -8,6 +8,8 @@ import {
   type SessionStatusMap,
   type SessionReplacementMap,
 } from "./HyroxPlanView";
+import { NewRaceForm } from "@/components/hyrox/NewRaceForm";
+import { AddRaceSection } from "@/components/hyrox/AddRaceSection";
 
 export const metadata = {
   title: "Plan Hyrox · OwnHealthyApp",
@@ -45,13 +47,16 @@ export default async function HyroxPage() {
 
   if (!race) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted">
-        <h1 className="font-display text-2xl uppercase tracking-wide text-text">
-          Sin plan Hyrox
-        </h1>
-        <p className="text-sm max-w-sm">
-          Todavía no hay ningún plan de carrera configurado para tu cuenta.
-        </p>
+      <div className="mx-auto flex max-w-sm flex-col gap-4 py-8">
+        <div className="text-center text-muted">
+          <h1 className="font-display text-2xl uppercase tracking-wide text-text">
+            Sin plan Hyrox
+          </h1>
+          <p className="text-sm">
+            Todavía no hay ninguna carrera configurada para tu cuenta.
+          </p>
+        </div>
+        <NewRaceForm />
       </div>
     );
   }
@@ -94,13 +99,16 @@ export default async function HyroxPage() {
   }
 
   return (
-    <HyroxPlanView
-      weeks={weeks}
-      currentWeekNum={currentWeek?.w ?? null}
-      raceVenue={race.venue ?? ""}
-      daysUntilRace={days}
-      statusMap={statusMap}
-      replacementMap={replacementMap}
-    />
+    <div className="space-y-6">
+      <HyroxPlanView
+        weeks={weeks}
+        currentWeekNum={currentWeek?.w ?? null}
+        raceVenue={race.venue ?? ""}
+        daysUntilRace={days}
+        statusMap={statusMap}
+        replacementMap={replacementMap}
+      />
+      <AddRaceSection />
+    </div>
   );
 }
