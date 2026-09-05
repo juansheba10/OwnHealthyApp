@@ -9,6 +9,7 @@ export const WRITE_TOOLS = new Set([
   "add_recipe",
   "generate_weekly_plan",
   "replace_hyrox_session",
+  "generate_hyrox_plan",
 ]);
 
 export function summarizeToolCall(
@@ -62,6 +63,22 @@ export function summarizeToolCall(
         title: "Planificar reemplazo Hyrox",
         summary: `${input.date} → ${input.type} ${input.duration_min} min · intensidad ${input.intensity}/10${input.notes ? ` · "${input.notes}"` : ""} (queda programado hasta marcarlo hecho)`,
       };
+    case "generate_hyrox_plan": {
+      const weeks = (input.weeks ?? []) as Array<{ week_num: number }>;
+      const nums = weeks.map((w) => w.week_num).sort((a, b) => a - b);
+      const range =
+        nums.length > 0 ? ` (S${nums[0]}–S${nums[nums.length - 1]})` : "";
+      const sessionCount = weeks.reduce(
+        (s, w) =>
+          s +
+          ((w as unknown as { sessions?: unknown[] }).sessions?.length ?? 0),
+        0,
+      );
+      return {
+        title: "Generar plan Hyrox",
+        summary: `${weeks.length} semanas${range} · ${sessionCount} sesiones`,
+      };
+    }
     default:
       return {
         title: name,
@@ -335,6 +352,97 @@ export const toolDefinitions: Tool[] = [
       required: ["user_id", "start_date", "days"],
     },
   },
+  {
+    name: "generate_hyrox_plan",
+    description:
+      "Genera (o reemplaza) semanas y sesiones del plan de entrenamiento Hyrox para una carrera YA CREADA (hyrox_races — si no existe, pide al usuario que la cree primero desde /hyrox). Upsert por (race_id, week_num) para semanas y por (semana, día) para sesiones: puedes llamarla varias veces, por ejemplo una vez por fase, sin perder las semanas ya generadas en llamadas anteriores. Requiere confirmación. ANTES de invocar: confirma con el usuario el race_id (usa get_user_stats o pide la carrera activa), la duración total del plan y la estructura de fases (p. ej. base / específico / simulaciones / taper) que quiere seguir.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        user_id: { type: "string" },
+        race_id: {
+          type: "string",
+          description:
+            "ID de la carrera (hyrox_races.id) para la que se genera el plan",
+        },
+        weeks: {
+          type: "array",
+          description: "Una entrada por semana del plan.",
+          items: {
+            type: "object",
+            properties: {
+              week_num: {
+                type: "number",
+                description: "Número de semana, 1-indexado",
+              },
+              phase: {
+                type: "string",
+                enum: ["1", "2", "3", "taper"],
+              },
+              start_date: {
+                type: "string",
+                description: "Lunes de inicio de la semana (YYYY-MM-DD)",
+              },
+              load: {
+                type: "number",
+                description:
+                  "Carga relativa de entrenamiento de la semana (0-100)",
+              },
+              focus: {
+                type: "string",
+                description: "Foco de la semana, en español",
+              },
+              descarga: {
+                type: "boolean",
+                description: "Semana de descarga/recuperación",
+              },
+              sim: {
+                type: "boolean",
+                description: "Semana con simulación completa de carrera",
+              },
+              race_day: {
+                type: "boolean",
+                description: "Semana de la carrera (normalmente la última)",
+              },
+              sessions: {
+                type: "array",
+                description:
+                  "Hasta 6 sesiones (Lun-Sáb); domingo se asume descanso implícito.",
+                items: {
+                  type: "object",
+                  properties: {
+                    day: {
+                      type: "string",
+                      enum: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+                    },
+                    type: {
+                      type: "string",
+                      enum: ["run", "hybrid", "strength", "sim", "rest"],
+                    },
+                    desc: {
+                      type: "string",
+                      description:
+                        "Descripción de la sesión, en español. Se permite <strong> para resaltar texto.",
+                    },
+                  },
+                  required: ["day", "type", "desc"],
+                },
+              },
+            },
+            required: [
+              "week_num",
+              "phase",
+              "start_date",
+              "load",
+              "focus",
+              "sessions",
+            ],
+          },
+        },
+      },
+      required: ["user_id", "race_id", "weeks"],
+    },
+  },
 ];
 
 // Tool execution functions
@@ -400,6 +508,12 @@ export async function executeTool(
         input.intensity as number,
         input.fatigue as number,
         input.notes as string | undefined,
+      );
+    case "generate_hyrox_plan":
+      return await generateHyroxPlan(
+        userId,
+        input.race_id as string,
+        input.weeks as HyroxPlanWeekInput[],
       );
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -907,5 +1021,138 @@ async function generateWeeklyPlan(
     message: `Plan generado: ${days.length} días (${dates[0]} → ${
       dates[dates.length - 1]
     }). Promedio ${avgKcal} kcal/día.`,
+  });
+}
+
+interface HyroxPlanSessionInput {
+  day: string;
+  type: string;
+  desc: string;
+}
+
+interface HyroxPlanWeekInput {
+  week_num: number;
+  phase: string;
+  start_date: string;
+  load: number;
+  focus: string;
+  descarga?: boolean;
+  sim?: boolean;
+  race_day?: boolean;
+  sessions: HyroxPlanSessionInput[];
+}
+
+const MONTHS_ES = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+
+// e.g. "13–19 abr" (same month) or "27 abr–3 may" (crosses months) — matches
+// the format hand-authored in the original static plan (lib/hyrox/plan.ts
+// history), computed here so the model doesn't have to get it right.
+function weekDateLabel(startDateIso: string): string {
+  const start = new Date(startDateIso + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 5); // Lun..Sáb
+  if (start.getMonth() === end.getMonth()) {
+    return `${start.getDate()}–${end.getDate()} ${MONTHS_ES[start.getMonth()]}`;
+  }
+  return `${start.getDate()} ${MONTHS_ES[start.getMonth()]}–${end.getDate()} ${MONTHS_ES[end.getMonth()]}`;
+}
+
+async function generateHyroxPlan(
+  userId: string,
+  raceId: string,
+  weeks: HyroxPlanWeekInput[],
+): Promise<string> {
+  if (!raceId) return JSON.stringify({ error: "race_id es obligatorio" });
+  if (!Array.isArray(weeks) || weeks.length === 0) {
+    return JSON.stringify({ error: "weeks no puede estar vacío" });
+  }
+
+  const supabase = getAdminClient();
+
+  // race_id comes from model input, not the trusted session — verify it
+  // actually belongs to this user before writing anything.
+  const { data: race } = await supabase
+    .from("hyrox_races")
+    .select("id")
+    .eq("id", raceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!race) {
+    return JSON.stringify({
+      error: "Carrera no encontrada para este usuario",
+    });
+  }
+
+  const weekRows = weeks.map((w) => ({
+    race_id: raceId,
+    week_num: w.week_num,
+    phase: w.phase,
+    start_date: w.start_date,
+    date_label: weekDateLabel(w.start_date),
+    load: w.load,
+    focus: w.focus,
+    descarga: w.descarga ?? false,
+    sim: w.sim ?? false,
+    race_day: w.race_day ?? false,
+  }));
+
+  const { data: upsertedWeeks, error: weeksError } = await supabase
+    .from("hyrox_weeks")
+    .upsert(weekRows, { onConflict: "race_id,week_num" })
+    .select("id, week_num");
+  if (weeksError) return JSON.stringify({ error: weeksError.message });
+
+  const weekIdByNum = new Map(
+    (upsertedWeeks ?? []).map((w) => [w.week_num, w.id]),
+  );
+
+  const sessionRows = weeks.flatMap((w) => {
+    const weekId = weekIdByNum.get(w.week_num);
+    if (!weekId) return [];
+    return (w.sessions ?? []).map((s) => ({
+      week_id: weekId,
+      day_code: s.day,
+      session_type: s.type,
+      description: s.desc,
+    }));
+  });
+
+  if (sessionRows.length > 0) {
+    const { error: sessionsError } = await supabase
+      .from("hyrox_sessions")
+      .upsert(sessionRows, { onConflict: "week_id,day_code" });
+    if (sessionsError) return JSON.stringify({ error: sessionsError.message });
+  }
+
+  const nums = weeks.map((w) => w.week_num).sort((a, b) => a - b);
+
+  await supabase.from("change_log").insert({
+    user_id: userId,
+    action: "generate_hyrox_plan",
+    details: {
+      race_id: raceId,
+      week_nums: nums,
+      session_count: sessionRows.length,
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    message: `Plan Hyrox generado: ${weeks.length} semanas (S${nums[0]}–S${
+      nums[nums.length - 1]
+    }), ${sessionRows.length} sesiones.`,
   });
 }

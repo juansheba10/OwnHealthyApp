@@ -246,6 +246,47 @@ async function deleteHyroxRowsForDay(
     .eq("user_id", userId);
 }
 
+export interface CreateHyroxRaceInput {
+  name: string;
+  venue?: string;
+  raceDate: string; // ISO yyyy-mm-dd
+  planStart: string; // ISO yyyy-mm-dd, must be a Monday
+}
+
+// Creates the race header only (hyrox_races row). Weeks/sessions are added
+// separately — there's no plan-authoring UI yet, see supabase/CRON_SETUP.md
+// sibling doc supabase/migrations/00009_hyrox_races.sql for the seeding
+// approach.
+export async function createHyroxRace(input: CreateHyroxRaceInput) {
+  const { supabase, userId } = await getAuthedUserId();
+
+  const name = input.name.trim();
+  if (!name) throw new Error("El nombre de la carrera es obligatorio");
+
+  const venue = (input.venue ?? "").trim();
+
+  if (!input.raceDate || !input.planStart) {
+    throw new Error("Las fechas son obligatorias");
+  }
+  if (input.planStart >= input.raceDate) {
+    throw new Error("El inicio del plan debe ser antes de la carrera");
+  }
+  const startDow = new Date(input.planStart + "T00:00:00").getDay();
+  if (startDow !== 1) {
+    throw new Error("El inicio del plan debe ser un lunes");
+  }
+
+  const { error } = await supabase.from("hyrox_races").insert({
+    user_id: userId,
+    name,
+    venue: venue || null,
+    race_date: input.raceDate,
+    plan_start: input.planStart,
+  });
+  if (error) throw new Error(error.message);
+  revalidateHyrox();
+}
+
 // Removes the Hyrox log for the given week/day from its planned date.
 export async function undoHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();
