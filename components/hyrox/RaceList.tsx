@@ -54,9 +54,7 @@ export function RaceList({ races, activeRaceId }: Props) {
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="truncate text-sm text-text">
-                  {race.name}
-                </span>
+                <span className="truncate text-sm text-text">{race.name}</span>
                 {race.id === activeRaceId && (
                   <span className="shrink-0 rounded-full bg-accent2/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-accent2">
                     Activa
