@@ -165,6 +165,36 @@ export function getSessionForDate(
   return { week, session };
 }
 
+export type HyroxRaceFormat = "individual" | "doubles";
+
+export const HYROX_RACE_FORMATS: Record<HyroxRaceFormat, { label: string }> = {
+  individual: { label: "Individual" },
+  doubles: { label: "Doubles" },
+};
+
+// Parses a user-typed finish time ("1:32:45" or "45:12") into seconds.
+// Returns null for anything that isn't a valid h:mm:ss / mm:ss time.
+export function parseFinishTime(input: string): number | null {
+  const parts = input.trim().split(":");
+  if (parts.length < 2 || parts.length > 3) return null;
+  if (parts.some((p) => !/^\d{1,2}$/.test(p))) return null;
+  const nums = parts.map(Number);
+  const [h, m, s] = parts.length === 3 ? nums : [0, nums[0], nums[1]];
+  if (m >= 60 || s >= 60) return null;
+  const total = h * 3600 + m * 60 + s;
+  return total > 0 ? total : null;
+}
+
+// Formats seconds back into "h:mm:ss" (or "m:ss" under an hour).
+export function formatFinishTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+
 export function daysUntilRace(raceDate: string, today: Date): number {
   return daysBetween(isoDate(today), raceDate);
 }

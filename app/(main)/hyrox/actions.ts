@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   getSessionDateIso,
+  parseFinishTime,
   type HyroxDayCode,
+  type HyroxRaceFormat,
   type HyroxSessionType,
   type HyroxWeek,
 } from "@/lib/hyrox/plan";
@@ -283,6 +285,35 @@ export async function createHyroxRace(input: CreateHyroxRaceInput) {
     race_date: input.raceDate,
     plan_start: input.planStart,
   });
+  if (error) throw new Error(error.message);
+  revalidateHyrox();
+}
+
+export interface HyroxRaceResultInput {
+  finishTime: string; // "h:mm:ss" or "mm:ss", empty string clears it
+  format: HyroxRaceFormat | null;
+}
+
+// Records how a race went: finish time and whether it was raced solo or as
+// a doubles team. Set from the race list on /hyrox once the race is done.
+export async function setHyroxRaceResult(
+  raceId: string,
+  input: HyroxRaceResultInput,
+) {
+  const { supabase, userId } = await getAuthedUserId();
+
+  const finishTimeSeconds = input.finishTime.trim()
+    ? parseFinishTime(input.finishTime)
+    : null;
+  if (input.finishTime.trim() && finishTimeSeconds === null) {
+    throw new Error("Tiempo inválido, usa el formato h:mm:ss o mm:ss");
+  }
+
+  const { error } = await supabase
+    .from("hyrox_races")
+    .update({ finish_time_seconds: finishTimeSeconds, format: input.format })
+    .eq("id", raceId)
+    .eq("user_id", userId);
   if (error) throw new Error(error.message);
   revalidateHyrox();
 }
