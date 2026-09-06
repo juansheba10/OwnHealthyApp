@@ -4,6 +4,7 @@ import {
   getSessionForDate as getSessionForDateInWeeks,
   type HyroxDayCode,
   type HyroxPhaseId,
+  type HyroxRaceFormat,
   type HyroxSession,
   type HyroxSessionType,
   type HyroxWeek,
@@ -15,6 +16,31 @@ export interface HyroxRace {
   venue: string | null;
   raceDate: string;
   planStart: string;
+  finishTimeSeconds: number | null;
+  format: HyroxRaceFormat | null;
+}
+
+const RACE_COLUMNS =
+  "id, name, venue, race_date, plan_start, finish_time_seconds, format";
+
+function mapRaceRow(row: {
+  id: string;
+  name: string;
+  venue: string | null;
+  race_date: string;
+  plan_start: string;
+  finish_time_seconds: number | null;
+  format: string | null;
+}): HyroxRace {
+  return {
+    id: row.id,
+    name: row.name,
+    venue: row.venue,
+    raceDate: row.race_date,
+    planStart: row.plan_start,
+    finishTimeSeconds: row.finish_time_seconds,
+    format: (row.format as HyroxRaceFormat | null) ?? null,
+  };
 }
 
 // A user's race: prefers the soonest upcoming one, falls back to the most
@@ -27,7 +53,7 @@ export async function getRaceForUser(
 
   const { data: upcoming } = await supabase
     .from("hyrox_races")
-    .select("id, name, venue, race_date, plan_start")
+    .select(RACE_COLUMNS)
     .eq("user_id", userId)
     .gte("race_date", today)
     .order("race_date", { ascending: true })
@@ -38,7 +64,7 @@ export async function getRaceForUser(
   if (!row) {
     const { data: past } = await supabase
       .from("hyrox_races")
-      .select("id, name, venue, race_date, plan_start")
+      .select(RACE_COLUMNS)
       .eq("user_id", userId)
       .order("race_date", { ascending: false })
       .limit(1)
@@ -47,13 +73,7 @@ export async function getRaceForUser(
   }
 
   if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    venue: row.venue,
-    raceDate: row.race_date,
-    planStart: row.plan_start,
-  };
+  return mapRaceRow(row);
 }
 
 // All of a user's races, most recent race date first.
@@ -63,18 +83,12 @@ export async function getRacesForUser(
 ): Promise<HyroxRace[]> {
   const { data, error } = await supabase
     .from("hyrox_races")
-    .select("id, name, venue, race_date, plan_start")
+    .select(RACE_COLUMNS)
     .eq("user_id", userId)
     .order("race_date", { ascending: false });
 
   if (error || !data) return [];
-  return data.map((row) => ({
-    id: row.id,
-    name: row.name,
-    venue: row.venue,
-    raceDate: row.race_date,
-    planStart: row.plan_start,
-  }));
+  return data.map(mapRaceRow);
 }
 
 export async function getWeeksForRace(
