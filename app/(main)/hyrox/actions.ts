@@ -318,6 +318,28 @@ export async function setHyroxRaceResult(
   revalidateHyrox();
 }
 
+// Clears a race's weekly plan (hyrox_weeks, and hyrox_sessions via FK
+// cascade) while keeping the race itself — name, venue, dates, and any
+// recorded finish time/format. Use once a race is done and its schedule is
+// no longer needed, without losing the result.
+export async function clearHyroxPlan(raceId: string) {
+  const { supabase, userId } = await getAuthedUserId();
+  const { data: race } = await supabase
+    .from("hyrox_races")
+    .select("id")
+    .eq("id", raceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!race) throw new Error("Carrera no encontrada");
+
+  const { error } = await supabase
+    .from("hyrox_weeks")
+    .delete()
+    .eq("race_id", raceId);
+  if (error) throw new Error(error.message);
+  revalidateHyrox();
+}
+
 // Deletes a race header along with its weeks/sessions (hyrox_weeks and
 // hyrox_sessions cascade via FK, see 00009_hyrox_races.sql). Logged workouts
 // in workout_logs are left untouched — they're historical training records,
