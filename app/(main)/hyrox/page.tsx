@@ -1,7 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getWeekForDate, daysUntilRace } from "@/lib/hyrox/plan";
-import { getRaceForUser, getWeeksForRace } from "@/lib/hyrox/data";
+import {
+  getRaceForUser,
+  getRacesForUser,
+  getWeeksForRace,
+} from "@/lib/hyrox/data";
 import type { HyroxSessionStatus } from "./actions";
 import {
   HyroxPlanView,
@@ -10,6 +14,7 @@ import {
 } from "./HyroxPlanView";
 import { NewRaceForm } from "@/components/hyrox/NewRaceForm";
 import { AddRaceSection } from "@/components/hyrox/AddRaceSection";
+import { RaceList } from "@/components/hyrox/RaceList";
 
 export const metadata = {
   title: "Plan Hyrox · OwnHealthyApp",
@@ -61,7 +66,10 @@ export default async function HyroxPage() {
     );
   }
 
-  const weeks = await getWeeksForRace(supabase, race.id);
+  const [weeks, races] = await Promise.all([
+    getWeeksForRace(supabase, race.id),
+    getRacesForUser(supabase, user.id),
+  ]);
 
   const today = new Date();
   const currentWeek = getWeekForDate(
@@ -108,6 +116,7 @@ export default async function HyroxPage() {
         statusMap={statusMap}
         replacementMap={replacementMap}
       />
+      <RaceList races={races} activeRaceId={race.id} />
       <AddRaceSection />
     </div>
   );

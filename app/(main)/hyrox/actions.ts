@@ -287,6 +287,21 @@ export async function createHyroxRace(input: CreateHyroxRaceInput) {
   revalidateHyrox();
 }
 
+// Deletes a race header along with its weeks/sessions (hyrox_weeks and
+// hyrox_sessions cascade via FK, see 00009_hyrox_races.sql). Logged workouts
+// in workout_logs are left untouched — they're historical training records,
+// not part of the plan.
+export async function deleteHyroxRace(raceId: string) {
+  const { supabase, userId } = await getAuthedUserId();
+  const { error } = await supabase
+    .from("hyrox_races")
+    .delete()
+    .eq("id", raceId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  revalidateHyrox();
+}
+
 // Removes the Hyrox log for the given week/day from its planned date.
 export async function undoHyroxSession(weekNum: number, day: HyroxDayCode) {
   const { supabase, userId } = await getAuthedUserId();

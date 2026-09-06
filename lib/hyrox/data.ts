@@ -56,6 +56,27 @@ export async function getRaceForUser(
   };
 }
 
+// All of a user's races, most recent race date first.
+export async function getRacesForUser(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<HyroxRace[]> {
+  const { data, error } = await supabase
+    .from("hyrox_races")
+    .select("id, name, venue, race_date, plan_start")
+    .eq("user_id", userId)
+    .order("race_date", { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    venue: row.venue,
+    raceDate: row.race_date,
+    planStart: row.plan_start,
+  }));
+}
+
 export async function getWeeksForRace(
   supabase: SupabaseClient,
   raceId: string,
